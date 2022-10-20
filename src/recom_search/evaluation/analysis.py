@@ -1,7 +1,7 @@
 from pathlib import Path
 from src.recom_search.evaluation.eval_bench import _get_ngrams, eval_main, bleu_scorer, group_bleu, self_bleu, self_edit_distance
-from src.recom_search.model.setup import tokenizer, model, dataset, dec_prefix, args, dict_io
-from src.recom_search.command.run_eval import run_model
+from src.recom_search.model.setup import tokenizer, model, data_set, args
+from src.recom_search.scripts.run_eval import run_model
 from src.recom_search.model.util import render_config_name
 import pickle
 from typing import Dict, List
@@ -24,7 +24,6 @@ import json
 from multiprocessing import Pool
 import multiprocessing
 import argparse
-from src.recom_search.model.setup import tokenizer
 from src.recom_search.evaluation.vis import draw_edges, draw_nodes
 from pyvis.network import Network
 from rouge_score import rouge_scorer

@@ -12,7 +12,7 @@ from collections import defaultdict
 from src.recom_search.model.baseline import baseline_recomb_sample, recomb_baseline
 from src.recom_search.model.generic_search import GenericSearch
 from src.recom_search.model.model_bfs_zip import bfs_rcb_any
-from src.recom_search.model.setup import tokenizer, model, dataset, dec_prefix, args, dict_io
+from src.recom_search.model.setup import tokenizer, model, data_set
 
 import numpy as np
 

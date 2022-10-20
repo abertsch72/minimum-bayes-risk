@@ -10,7 +10,11 @@ import os
 import random
 
 random.seed(2021)
-
+tokenizer = None
+model = None
+data_set = None
+args = None
+dec_prefix = None
 def render_address(root = 'output') ->dict:
     """
     create name of subdirectories
@@ -23,6 +27,8 @@ def render_address(root = 'output') ->dict:
         'table':os.path.join(root, 'table'),
     }
     return d
+dict_io = render_address()
+
 
 def read_mt_data(path='/mnt/data1/jcxu/lattice-sum/mt-data/use', name='zh-en'):
     src = name[:2]
@@ -40,7 +46,8 @@ def read_mt_data(path='/mnt/data1/jcxu/lattice-sum/mt-data/use', name='zh-en'):
 # MODEL_CACHE = '/mnt/data1/jcxu/cache'
 
 
-def setup_model(task='sum', dataset='xsum', model_name='facebook/bart-large-xsum', device_name='cuda:2'):
+def setup_model(task='sum', dataset='xsum', model_name='facebook/bart-large-xsum', device_name='cpu'):
+    global tokenizer, model, data_set, dec_prefix
     device = torch.device(device_name)
     print(model_name)
     config = AutoConfig.from_pretrained(model_name)
@@ -100,6 +107,8 @@ def setup_model(task='sum', dataset='xsum', model_name='facebook/bart-large-xsum
                       tokenizer.lang_code_to_id["en_XX"]]
         logging.info(f"{tokenizer.decode(dec_prefix)}")
     model = model.to(device)
+    data_set = dataset
+
     return tokenizer, model, dataset, dec_prefix
 
 
@@ -189,7 +198,7 @@ def process_arg():
     # end of depricated
     parser.add_argument('-merge', type=str, default='zip',
                         choices=['zip', 'rcb','none'])
-
+    global args 
     args = parser.parse_args()
     return args
 
