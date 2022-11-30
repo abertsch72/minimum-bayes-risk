@@ -81,7 +81,7 @@ def run_bfs(args, model, tokenizer, inp, dec_prefix, param_sim_function, config_
     else:
         comp_budget = args.max_len * args.beam_size
         cur_max_len = args.max_len
-    output = bfs(doc_input_ids=input_ids, model=model, tokenizer=tokenizer, param_sim_function=param_sim_function, dec_prefix=dec_prefix, avg_score=args.avg_score, max_len=cur_max_len, k_best=args.k_best, comp_budget=comp_budget, config_heu=None, config_search=config_search)
+    output = bfs(doc_input_ids=input_ids, model=model, tokenizer=tokenizer, dec_prefix=dec_prefix, avg_score=args.avg_score, max_len=cur_max_len, k_best=args.k_best, comp_budget=comp_budget, config_heu=None, config_search=config_search)
 
     mo = SearchModelOutput(ends=output)
     return mo
@@ -97,7 +97,7 @@ def run_bfs_recombination(args, model, tokenizer, inp, dec_prefix, param_sim_fun
         'heu_word': args.heu_word
     }
     input_ids = tokenizer(
-        inp, return_tensors="pt").input_ids.to(args.device)
+        inp, return_tensors="pt", padding=True, truncation=True, max_length=1024).input_ids.to(args.device)
     if args.max_len == -1:
         cur_max_len = input_ids.squeeze().size()[0] * 2
         comp_budget = cur_max_len * args.beam_size
@@ -181,6 +181,8 @@ def run_model(args, tokenizer, model, dataset, dec_prefix, wt_dir):
             doc_id = idx
         elif args.dataset == 'cnndm':
             document = example['article']
+            sents = document.split('\n')
+            inp = "\n".join(sents[:10])[:5000]
             doc_id = example['id']
             ref_sum = example['highlights']
         elif args.dataset == 'xsum':

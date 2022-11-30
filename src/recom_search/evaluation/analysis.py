@@ -14,7 +14,7 @@ import statistics
 import os
 import numpy as np
 import pandas as pd
-import seaborn as sns
+# import seaborn as sns
 import matplotlib.pyplot as plt
 from typing import Dict
 import itertools
@@ -25,7 +25,7 @@ from multiprocessing import Pool
 import multiprocessing
 import argparse
 from src.recom_search.evaluation.vis import draw_edges, draw_nodes
-from pyvis.network import Network
+# from pyvis.network import Network
 from rouge_score import rouge_scorer
 
 from heapq import heappop, heappush
@@ -39,7 +39,6 @@ logger = logging.getLogger(__name__)
 
 # nlp = spacy.load("en_core_web_sm")
 # all_stopwords = spacy.lang.en.stop_words.STOP_WORDS
-
 
 def find_start_end(nodes, edges):
     degree = {}
@@ -98,7 +97,7 @@ scorer = rouge_scorer.RougeScorer(['rouge2'], use_stemmer=False)
 
 
 class GenPath:
-    def __init__(self, tokens=['<s>'], token_ids=[2], scores=0, ngram_cache=[], max_len=200, dedup_n=None) -> None:
+    def __init__(self, tokens=['<s>'], token_ids=[2], scores=0, ngram_cache=[], max_len=200, dedup_n=None, score_values=None) -> None:
         self.tokens = tokens
         self.token_ids = token_ids
         self.scores = scores
@@ -106,6 +105,7 @@ class GenPath:
         self.n = dedup_n
         self.metrics = {}
         self.max_len = max_len
+        self.score_values = score_values or []
 
     def add(self, tok, tok_id, score):
         if self.n and len(self.tokens) >= self.n-1:
@@ -116,10 +116,13 @@ class GenPath:
             dup_ngram_cache = self.ngram_cache.copy()
             dup_ngram_cache.append(tmp_ngram)
             obj = GenPath(self.tokens + [tok], self.token_ids +
-                          [tok_id], self.scores+score, dup_ngram_cache, max_len=self.max_len, dedup_n=self.n)
+                          [tok_id], self.scores+score, dup_ngram_cache, 
+                          max_len=self.max_len, dedup_n=self.n, 
+                          score_values=self.score_values + [score])
             return obj
         obj = GenPath(self.tokens + [tok], self.token_ids +
-                      [tok_id], self.scores+score, [], max_len=self.max_len, dedup_n=self.n)
+                      [tok_id], self.scores+score, [], max_len=self.max_len, 
+                      dedup_n=self.n, score_values=self.score_values + [score])
         return obj
 
     def __len__(self) -> int:
@@ -136,8 +139,9 @@ def derive_path(nodes: Dict, edges: Dict, flag_sum: bool, eps=int(5e3), min_len=
     # node_uids = [x['uid'] for x in nodes]
     node_text, node_tok_idx = build_node_text_dict(nodes)
     sos_key, list_of_eos_key, degree_mat = find_start_end(nodes, edges)
+    # print([node_text[n] for n in list_of_eos_key])
 
-    seen = [sos_key]
+    seen = {sos_key}
     edges_tgt_to_src, edges_tgt_to_src_score = cache_edges(edges)
     if flag_sum:
         dedup = 4
@@ -150,32 +154,61 @@ def derive_path(nodes: Dict, edges: Dict, flag_sum: bool, eps=int(5e3), min_len=
 
     paths = defaultdict(list)   #
     paths[sos_key] = [GenPath(dedup_n=dedup, max_len=max_len)]
+    counts = defaultdict(lambda: 0)
+    counts[sos_key] = 1
 
-    def dfs(node, score):
-        # print(node)
+    def dfs(node, score, depth=0):
         if node in seen:
-            return paths[node]
+            # import pdb; pdb.set_trace()
+            return paths[node], counts[node]
+        seen.add(node)
+        # print(depth, node, seen)
 
+        # if depth % 100 == 0:
+            # import pdb; pdb.set_trace()
         fathers = edges_tgt_to_src[node]
         fathers_score = edges_tgt_to_src_score[node]
         output = []
-        for f, fs in zip(fathers, fathers_score):
-            output += dfs(f, fs)
-        seen.append(node)
+        indices = np.arange(len(fathers))
+        np.random.shuffle(indices)
+        count = 0
+        for i in indices:
+            f = fathers[i]
+            fs = fathers_score[i]
+            part_output, part_count = dfs(f, fs, depth=depth+1)
+            output += part_output
+            count += part_count
+            # import pdb; pdb.set_trace()
 
         # filter_output = [x.add(node_text[node], score) for x in output]
-        filter_output = list(
-            map(lambda x: x.add(node_text[node], node_tok_idx[node], score), output))
-        filter_output = list(filter(lambda x: x != None, filter_output))
+        # filter_output = list(
+        #     map(lambda x: x.add(node_text[node], node_tok_idx[node], score), output))
+        # filter_output = list(filter(lambda x: x != None, filter_output))
+        filter_output = []
+        for x in output:
+            new_x = x.add(node_text[node], node_tok_idx[node], score)
+            if new_x is not None:
+                filter_output.append(new_x)
+        num_outputs = len(filter_output)
+
         random.shuffle(filter_output)
         filter_output = filter_output[:eps]
 
         paths[node] = filter_output
+        counts[node] = count
+        print(f"{node}:", num_outputs)
         # print(node_text[node])
-        return filter_output
+        # import pdb; pdb.set_trace()
+        return filter_output, count
 
     for node in list_of_eos_key:
         dfs(node, 0)
+
+    total_outputs = 0
+    for node in list_of_eos_key:
+        total_outputs += counts[node]
+
+    print(f"Total number of paths from derive_path() = {total_outputs}")
 
     total_path = []
     for end_key in list_of_eos_key:
@@ -366,14 +399,15 @@ def viz_result(generated_outputs: List[BeamNode], ref_sum, flag_sum, nsample=20)
     # first set all nodes and edges
     all_nodes = {}
     all_edges = {}
-    net = Network(height='1500px', width='100%', directed=True)
+    net = None
+    # net = Network(height='1500px', width='100%', directed=True)
 
     for idx, go in enumerate(generated_outputs):
         nodes, edges = go.visualization()
         all_nodes.update(nodes)
         all_edges.update(edges)
-        draw_nodes(net, nodes, idx)
-        draw_edges(net, edges, idx)
+        # draw_nodes(net, nodes, idx)
+        # draw_edges(net, edges, idx)
 
     all_paths, all_eos, all_degree_mat, sos_key = derive_path(
         all_nodes, all_edges, flag_sum)
@@ -386,9 +420,11 @@ def viz_result(generated_outputs: List[BeamNode], ref_sum, flag_sum, nsample=20)
     # compute ROUGE or BLEU
     logging.info("ALL path")
     logging.info(len(all_paths))
+
     dict_of_var_paths, buck_ratio = oracle_path(
         all_paths, ref_sum, flag_sum, nsample)
     stat = {**stat, **buck_ratio}
+
     for k, v in dict_of_var_paths.items():
         path_sample_text = [x.text for x in v]
         extrinsic_eval_sample = eval_main(
@@ -459,7 +495,7 @@ def analyze_data(f, config_name: str, dict_io_data: str, dict_io_text, dict_io_h
     stat["file"] = name
     with open(fname, 'w') as wfd:
         json.dump(stat, wfd)
-    network.save_graph(os.path.join(dict_io_html, config_name, f"{name}.html"))
+    # network.save_graph(os.path.join(dict_io_html, config_name, f"{name}.html"))
 
 
 if __name__ == "__main__":

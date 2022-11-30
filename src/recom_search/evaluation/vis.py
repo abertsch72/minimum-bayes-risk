@@ -4,10 +4,10 @@ from collections import defaultdict
 import pickle
 
 from tqdm import tqdm
-import textstat
+# import textstat
 
 from collections import UserDict
-from pyvis.network import Network
+# from pyvis.network import Network
 import networkx as nx
 # from src.recom_search.model.model_output import SearchModelOutput
 

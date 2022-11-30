@@ -52,7 +52,7 @@ def setup_model(task='sum', dataset='xsum', model_name='facebook/bart-large-xsum
     print(model_name)
     config = AutoConfig.from_pretrained(model_name)
     model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    tokenizer = AutoTokenizer.from_pretrained(model_name, padding=True, truncation=True, max_length=1024)
 
     if task == 'custom':
         # you need to store the input under the path_dataset folder
@@ -67,8 +67,8 @@ def setup_model(task='sum', dataset='xsum', model_name='facebook/bart-large-xsum
         if dataset == 'xsum':
             dataset = load_dataset("xsum", split='validation')
         elif dataset == 'cnndm':
-            raise NotImplementedError("not supported")
-            dataset = load_dataset("cnn_dailymail", split='validation')
+            # raise NotImplementedError("not supported")
+            dataset = load_dataset("ccdv/cnn_dailymail", '3.0.0', split='validation')
             print("CNNDM mean token in ref 56")
         dec_prefix = [tokenizer.eos_token_id]
     elif task == 'mt1n':
@@ -146,7 +146,7 @@ def setup_logger(name):
 
 def process_arg():
     parser = argparse.ArgumentParser()
-    parser.add_argument('-device', type=str, default='cuda:2', help='name of device, eg. cuda:0 or cpu')
+    parser.add_argument('-device', type=str, default='cpu', help='name of device, eg. cuda:0 or cpu')
     parser.add_argument("-model", type=str, choices=[
                         'dbs', 'bs', 'greedy', 'topp', 'temp', 'bs_recom', 'sample_recom', 'bfs','bfs_recom'], default='bs')
     parser.add_argument('-beam_size', type=int, default=15)

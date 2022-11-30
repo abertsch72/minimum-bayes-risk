@@ -135,8 +135,10 @@ dmypy.json
 .txt
 *.csv
 *.pdf
-*.json
+# *.json
 *.html
 *.txt
 *.log
 *.pkl
+
+# output/
