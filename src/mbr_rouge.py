@@ -6,9 +6,11 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 import time
 import random
+import json
 from functools import lru_cache
 from collections import deque
 from pprint import pprint
+
 from lattice import Lattice
 
 import sys
@@ -17,12 +19,12 @@ sys.path.append("./src/")
 
 import src
 from rouge_score import rouge_scorer
+from transformers import AutoTokenizer
 
-# from transformers import AutoTokenizer
 
 from src.recom_search.evaluation.analysis import derive_path
 
-# tokenizer = AutoTokenizer.from_pretrained("facebook/bart-large-xsum")
+tokenizer = AutoTokenizer.from_pretrained("facebook/bart-large-xsum")
 
 full_rouge_scorer = rouge_scorer.RougeScorer(
     ['rouge1', 'rouge2', 'rougeL'], use_stemmer=True)
@@ -57,7 +59,9 @@ def get_graph(graph_ends):
     return all_nodes, all_edges
 
 i = 0
-all_data = []
+actual_rouges = []
+
+log_json = []
 
 for file in tqdm(result_files):
     if i == 0:
@@ -70,14 +74,14 @@ for file in tqdm(result_files):
     else: # bfs / bfs+recomb
         graph_data = get_graph(output.ends)
         lattice = Lattice(*graph_data)
-        print("Starting Lattice.get_length_dict()...")
+        # print("Starting Lattice.get_length_dict()...")
         start = time.time()
         length_dict, all_node_length_dict = lattice.get_length_dict_reverse_dfs()
         paths_per_node = {node: sum(n for (_, n) in data.values()) for node, data in all_node_length_dict.items()}
-        print(f"Getting length dict took {time.time() - start} seconds.")
-        pprint(length_dict)
+        # print(f"Getting length dict took {time.time() - start} seconds.")
+        # pprint(length_dict)
         total_num_paths = sum(num for (_, num) in length_dict.values())
-        print(f"Total number paths from get_length_dict() = {total_num_paths}")
+        # print(f"Total number paths from get_length_dict() = {total_num_paths}")
         
         # all_paths = get_all_paths(output.ends)
         # print(f"Total number of paths from get_all_paths() = {len(all_paths)}")
@@ -91,9 +95,45 @@ for file in tqdm(result_files):
         avg_len_unweighted = 0
         for length, (_, count) in length_dict.items():
             avg_len_unweighted += length * count / total_num_paths
-        print('Avg length exact:', avg_len_unweighted)
+        # print('Avg length exact:', avg_len_unweighted)
 
-        word_dict, all_node_word_dict = lattice.get_word_dict(all_node_length_dict)
-        pprint(word_dict)
+        word_dict, all_node_word_dict = lattice.get_word_dict_count_aware(all_node_length_dict)
 
-        import pdb; pdb.set_trace()
+        # pprint(word_dict)
+
+        # using unweighted probs
+        # TODO: weight by log likelihood
+        exp_word_match = {word: count / total_num_paths for word, (_, count) in word_dict.items()}
+
+        best_path, best_rouge, all_node_rouge_dict = lattice.get_top_rouge_path_count_aware(avg_len_unweighted, exp_word_match)
+        best_text = lattice.get_path_text(best_path)
+        best_token_ids = [lattice.nodes[node]['tok_idx'] for node in best_path]
+
+        best_detokenized = tokenizer.decode(best_token_ids, skip_special_tokens=True)
+        # print(best_text)
+        # print(best_rouge)
+        # print(best_detokenized)
+
+        rouge_scores = full_rouge_scorer.score(
+            output.reference,
+            best_detokenized
+        )
+
+        actual_rouges.append(rouge_scores['rouge2'].fmeasure)
+
+        log_json.append({
+            'file': file,
+            'max_rouge': best_rouge,
+            'max_path': best_path,
+            'mbr_hypo': best_detokenized,
+            'ref': output.reference,
+            'rouge1': rouge_scores['rouge1'].fmeasure,
+            'rouge2': rouge_scores['rouge2'].fmeasure,
+            'rougeL': rouge_scores['rougeL'].fmeasure
+        })
+
+print("Average rouge-2 using MBR:", sum(actual_rouges) / len(actual_rouges))
+
+with open('mbr_rouge_results_-2-4.json', 'w+') as f:
+    json.dump(log_json, f)
+

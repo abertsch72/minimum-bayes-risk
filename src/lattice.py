@@ -1,6 +1,7 @@
 import sys
 sys.path.append("./")
 sys.path.append("./src/")
+from typing import Dict
 
 from src.recom_search.evaluation.analysis import find_start_end
 
@@ -113,6 +114,9 @@ class Lattice(object):
             curr_length_dict = {}
             for parent_node, weight in self.reverse_edges[node].items():
                 parent_length_dict = dfs_helper(parent_node)
+                # if len(parent_length_dict) == 0:
+                #     # Hit a loop!
+                #     import pdb; pdb.set_trace()
                 for length, (length_score, length_count) in parent_length_dict.items():
                     new_length = length + 1
                     added_score = length_score + weight * length_count
@@ -139,7 +143,7 @@ class Lattice(object):
     def _get_node_path_count_dict(self, all_node_length_dict):
         '''
         Returns dict mapping each node to 2-tuple containing
-        (total score of paths from sos token to that node
+        (total score of paths from sos token to that node,
          # of paths from sos token to that node)
         '''
         path_count_dict = {}
@@ -172,7 +176,7 @@ class Lattice(object):
 
         all_node_word_dict = {node: {} for node in self.nodes}
 
-        visited = set()
+        visited = {self.sos}
         def dfs_helper(node):
             if node in visited:
                 return all_node_word_dict[node]
@@ -193,8 +197,60 @@ class Lattice(object):
             # to the number of paths that reach the current node.
             curr_word_dict[curr_word] = path_count_dict[node]
 
-            if 'end' in curr_word_dict:
-                print('end:', curr_word_dict['end'])
+            all_node_word_dict[node] = curr_word_dict
+            return curr_word_dict
+
+        for eos in self.eos_list:
+            dfs_helper(eos)
+        
+        word_dict = self._extract_word_dict(all_node_word_dict)
+        return word_dict, all_node_word_dict
+
+    def get_word_dict_count_aware(self, all_node_length_dict):
+        '''
+        all_node_word_dict = {
+            node: {
+                word: (total score of paths from sos to node that contain word,
+                       number of paths from sos to node that contain word)
+            }
+        }
+        '''
+        path_count_dict = self._get_node_path_count_dict(all_node_length_dict)
+
+        all_node_word_dict = {node: {} for node in self.nodes}
+
+        visited = {self.sos}
+        def dfs_helper(node):
+            if node in visited:
+                return all_node_word_dict[node]
+            visited.add(node)
+
+            curr_word = self.nodes[node]['text']
+
+            curr_word_dict = {} # word -> (total score, count)
+            for parent_node, weight in self.reverse_edges[node].items():
+                parent_word_dict = dfs_helper(parent_node)
+                for word, (parent_score, parent_count) in parent_word_dict.items():
+                    if word != curr_word:
+                        old_score, old_count = curr_word_dict.get(word, (0,0))
+                        added_score = parent_score + weight * parent_count
+                        curr_word_dict[word] = (old_score + added_score,
+                                                old_count + parent_count)
+
+            total_score, total_paths = path_count_dict[node]
+            max_count = 1
+            while (curr_word, max_count) in curr_word_dict:
+                max_count += 1
+            other_count_paths = 0
+            other_count_scores = 0
+            for count in range(max_count, 1, -1): # count \in [max_count, ..., 2]
+                curr_word_dict[(curr_word, count)] = curr_word_dict[(curr_word, count-1)]
+                other_count_scores += curr_word_dict[(curr_word, count-1)][0]
+                other_count_paths += curr_word_dict[(curr_word, count-1)][1]
+            curr_word_dict[(curr_word, 1)] = (
+                total_score - other_count_scores, 
+                total_paths - other_count_paths
+            )
 
             all_node_word_dict[node] = curr_word_dict
             return curr_word_dict
@@ -204,3 +260,127 @@ class Lattice(object):
         
         word_dict = self._extract_word_dict(all_node_word_dict)
         return word_dict, all_node_word_dict
+
+    def _extract_top_rouge_path(self, all_node_rouge_dict, min_length=0, max_length=float('inf')):
+        top_rouge, top_eos_len = -float('inf'), None
+        for eos in self.eos_list:
+            for length, (rouge, _, _) in all_node_rouge_dict[eos].items():
+                if not (min_length <= length <= max_length):
+                    continue
+                if rouge > top_rouge:
+                    top_rouge = rouge
+                    top_eos_len = (eos, length)
+        assert top_eos_len is not None
+        curr_node, curr_length = top_eos_len
+        rev_path = [curr_node]
+        while curr_node != self.sos:
+            curr_node = all_node_rouge_dict[curr_node][curr_length][-1]
+            curr_length -= 1
+            rev_path.append(curr_node)
+        return rev_path[::-1], top_rouge
+
+    def get_top_rouge_path(self, mean_length: float, exp_word_match: Dict[str, float]):
+        '''
+        all_node_rouge_dict = {
+            node: {
+                length: (max expected rouge over all paths from sos to node, 
+                         E[m(c, h)],
+                         parent in max rouge path)
+            }
+        }
+        '''
+        all_node_rouge_dict = {node: {} for node in self.nodes}
+        all_node_rouge_dict[self.sos] = {0: (0, 0, None)}
+        
+        visited = {self.sos}
+        def dfs_helper(node):
+            if node in visited:
+                return all_node_rouge_dict[node]
+            visited.add(node)
+            curr_word = self.nodes[node]['text']
+            curr_exp_match = exp_word_match[curr_word]
+
+            curr_rouge_dict = {}
+            for parent, _ in self.reverse_edges[node].items():
+                parent_rouge_dict = dfs_helper(parent)
+                for parent_length, (_, parent_match, _) in parent_rouge_dict.items():
+                    new_length = parent_length + 1
+                    new_match = parent_match + curr_exp_match
+                    new_rouge = 2 * new_match / (new_length + mean_length)
+                    
+                    if new_length not in curr_rouge_dict:
+                        curr_rouge_dict[new_length] = (new_rouge, new_match, parent)
+                    else:
+                        old_rouge = curr_rouge_dict[new_length][0]
+                        if new_rouge > old_rouge:
+                            curr_rouge_dict[new_length] = (new_rouge, new_match, parent)
+
+            all_node_rouge_dict[node] = curr_rouge_dict
+            return curr_rouge_dict
+        
+        for eos in self.eos_list:
+            dfs_helper(eos)
+
+        best_path, best_rouge = self._extract_top_rouge_path(all_node_rouge_dict,
+            min_length=mean_length-2, max_length=mean_length+2)
+        return best_path, best_rouge, all_node_rouge_dict
+
+
+
+    def get_top_rouge_path_count_aware(self, mean_length: float, exp_word_match: Dict[str, float]):
+        '''
+        all_node_rouge_dict = {
+            node: {
+                length: (max expected rouge over all paths from sos to node, 
+                         E[m(c, h)],
+                         parent in max rouge path)
+            }
+        }
+        '''
+        all_node_rouge_dict = {node: {} for node in self.nodes}
+        all_node_rouge_dict[self.sos] = {0: (0, 0, None)}
+        
+        visited = {self.sos}
+        def dfs_helper(node):
+            if node in visited:
+                return all_node_rouge_dict[node]
+            visited.add(node)
+            curr_word = self.nodes[node]['text']
+
+            curr_rouge_dict = {}
+            for parent, _ in self.reverse_edges[node].items():
+                parent_rouge_dict = dfs_helper(parent)
+                for parent_length, (_, parent_match, _) in parent_rouge_dict.items():
+                    new_length = parent_length + 1
+
+                    curr_word_prefix_count = 1 + (self.nodes[parent]['text'] == curr_word)
+                    curr_node, curr_length = parent, parent_length
+                    while curr_node != self.sos:
+                        curr_node = all_node_rouge_dict[curr_node][curr_length][-1]
+                        curr_length -= 1
+                        curr_word_prefix_count += (self.nodes[curr_node]['text'] == curr_word)
+
+                    curr_exp_match = exp_word_match.get((curr_word, curr_word_prefix_count), 0.0)
+
+                    new_match = parent_match + curr_exp_match
+                    new_rouge = 2 * new_match / (new_length + mean_length)
+                    
+                    if new_length not in curr_rouge_dict:
+                        curr_rouge_dict[new_length] = (new_rouge, new_match, parent)
+                    else:
+                        old_rouge = curr_rouge_dict[new_length][0]
+                        if new_rouge > old_rouge:
+                            curr_rouge_dict[new_length] = (new_rouge, new_match, parent)
+
+            all_node_rouge_dict[node] = curr_rouge_dict
+            return curr_rouge_dict
+        
+        for eos in self.eos_list:
+            dfs_helper(eos)
+
+        best_path, best_rouge = self._extract_top_rouge_path(all_node_rouge_dict,
+            min_length=mean_length-2, max_length=mean_length+2)
+        return best_path, best_rouge, all_node_rouge_dict
+
+    def get_path_text(self, path):
+        return [self.nodes[node]['text'] for node in path]
