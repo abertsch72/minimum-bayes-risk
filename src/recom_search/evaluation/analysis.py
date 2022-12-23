@@ -135,7 +135,7 @@ class GenPath:
         return self.scores / len(self.tokens) ** 0.8
 
 
-def derive_path(nodes: Dict, edges: Dict, flag_sum: bool, eps=int(5e3), min_len=5):
+def derive_path(nodes: Dict, edges: Dict, flag_sum: bool, eps=int(5e3), min_len=5, sample=False):
     # node_uids = [x['uid'] for x in nodes]
     node_text, node_tok_idx = build_node_text_dict(nodes)
     sos_key, list_of_eos_key, degree_mat = find_start_end(nodes, edges)
@@ -164,13 +164,13 @@ def derive_path(nodes: Dict, edges: Dict, flag_sum: bool, eps=int(5e3), min_len=
         seen.add(node)
         # print(depth, node, seen)
 
-        # if depth % 100 == 0:
-            # import pdb; pdb.set_trace()
         fathers = edges_tgt_to_src[node]
         fathers_score = edges_tgt_to_src_score[node]
         output = []
         indices = np.arange(len(fathers))
         np.random.shuffle(indices)
+        if sample:
+            indices = indices[:3]
         count = 0
         for i in indices:
             f = fathers[i]
@@ -196,7 +196,7 @@ def derive_path(nodes: Dict, edges: Dict, flag_sum: bool, eps=int(5e3), min_len=
 
         paths[node] = filter_output
         counts[node] = count
-        print(f"{node}:", num_outputs)
+        # print(f"{node}:", num_outputs)
         # print(node_text[node])
         # import pdb; pdb.set_trace()
         return filter_output, count

@@ -198,6 +198,18 @@ def process_arg():
     # end of depricated
     parser.add_argument('-merge', type=str, default='zip',
                         choices=['zip', 'rcb','none'])
+
+    mbr_group = parser.add_argument_group('mbr', 'mbr args')
+    mbr_group.add_argument('--outfile', type=str, default=None)
+    mbr_group.add_argument('--rouge', type=int, default=1,
+                           help='ROUGE-n for MBR approximation')
+    mbr_group.add_argument('--uniform', action='store_true', default=False,
+                           help='use uniform scoring instead of weighted lattice scores')
+    mbr_group.add_argument('--count_aware', action='store_true',
+                           help='use count-aware ROUGE approximation')
+    mbr_group.add_argument('--d_length', type=int, default=float('inf'),
+                           help='min/max length deviation from mean')
+
     global args 
     args = parser.parse_args()
     return args
