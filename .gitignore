@@ -142,3 +142,4 @@ dmypy.json
 *.pkl
 
 # output/
+/output
