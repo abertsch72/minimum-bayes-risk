@@ -76,13 +76,14 @@ for file in tqdm(result_files):
     if output.output is not None: # beam search
         max_idx = np.argmax(output.score_avg) 
         pred = output.output[0]
-        rouges = [
-            full_rouge_scorer.score(
-                output.reference, 
-                tokenizer.decode(hypo.all_token_idx, skip_special_tokens=True)
-            )
-            for hypo in output.ends
-        ]
+        # rouges = [
+        #     full_rouge_scorer.score(
+        #         output.reference, 
+        #         tokenizer.decode(hypo.all_token_idx, skip_special_tokens=True)
+        #     )
+        #     for hypo in output.ends
+        # ]
+        rouges = [full_rouge_scorer.score(output.reference, pred)]
         
         r1_scores.append(sum(r['rouge1'].fmeasure for r in rouges) / len(rouges))
         r2_scores.append(sum(r['rouge2'].fmeasure for r in rouges) / len(rouges))

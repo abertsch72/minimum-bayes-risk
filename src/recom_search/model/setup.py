@@ -199,16 +199,32 @@ def process_arg():
     parser.add_argument('-merge', type=str, default='zip',
                         choices=['zip', 'rcb','none'])
 
+    # Lattice MBR arguments
     mbr_group = parser.add_argument_group('mbr', 'mbr args')
-    mbr_group.add_argument('--outfile', type=str, default=None)
-    mbr_group.add_argument('--rouge', type=int, default=1,
-                           help='ROUGE-n for MBR approximation')
+    mbr_group.add_argument('--outfile', type=str, default=None, 
+                           help='file to save results to')
+    mbr_group.add_argument('--lattice_metric', type=str, default='rouge1',
+                           help='metric for MBR approximation in lattice',
+                           choices=['rouge1', 'rouge2', 'match1', 'match2'])
     mbr_group.add_argument('--uniform', action='store_true', default=False,
                            help='use uniform scoring instead of weighted lattice scores')
     mbr_group.add_argument('--count_aware', action='store_true',
                            help='use count-aware ROUGE approximation')
+    mbr_group.add_argument('--length_alpha', type=float, default=0.0,
+                           help='length smoothing for mean length calculation, ' + \
+                                'i.e. optionally divide \hat{p}(|h| = L) by L**alpha')
+    mbr_group.add_argument('--match_uniform', action='store_true', default=False,
+                           help='use uniform scoring for expected match calculation only')
     mbr_group.add_argument('--d_length', type=int, default=float('inf'),
                            help='min/max length deviation from mean')
+    # Arguments for second stage MBR re-ranking
+    mbr_group.add_argument('--lattice_topk', type=int, default=1,
+                           help='number of top gain hypotheses to track in lattice')
+    mbr_group.add_argument('--rerank_topk', type=int, default=-1,
+                           help='number of hypotheses for second-stage MBR reranking.' + \
+                                'defaults to same value as lattice_topk')
+    mbr_group.add_argument('--rerank_rouge', type=str, default='2',
+                           help='ROUGE-n for top-k reranking')
 
     global args 
     args = parser.parse_args()

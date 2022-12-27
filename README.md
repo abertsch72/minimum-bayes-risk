@@ -4,9 +4,15 @@ To run MBR decoding, assuming you have already generated lattice results, you ca
 ```
 python3 src/mbr_rouge.py [args]
 ```
-Note that outputs for BFS+recomb are already stored in `output/data/sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_zip_0.75_0.0_0.9`. See the 'mbr' argument group in `setup.py` for a list of valid arguments. As an example, for MBR with ROUGE-1, count awareness, and length bounding of 4, run:
+Note that outputs for BFS+recomb can be pulled from DVC; after pulling them, they can be found in `output/data/sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_zip_0.75_0.0_0.9`. 
+
+See the 'mbr' argument group in `setup.py` for a list of valid arguments. As an example, for MBR with ROUGE-1 lattice approximation, count awareness, and length bounding of 4, run:
 ```
 python3 src/mbr_rouge.py --rouge 1 --count_aware --d_length 4
+```
+To run our current best method (MBR with unigram match lattice approximation, length bounding of 4, second-stage reranking over k=10 hypotheses, geometric mean of ROUGE1-6 as the reranking metric, and uniform scoring for unigram match):
+```
+python3 -i src/mbr_rouge.py --lattice_metric match1 --d_length 4 --lattice_topk 10 --rerank_rouge 6 --match_uniform
 ```
 
 # [Massive-scale Decoding for Text Generation using Lattices](https://arxiv.org/abs/2112.07660)
