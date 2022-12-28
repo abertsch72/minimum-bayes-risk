@@ -8,7 +8,7 @@ Note that outputs for BFS+recomb can be pulled from DVC; after pulling them, the
 
 See the 'mbr' argument group in `setup.py` for a list of valid arguments. As an example, for MBR with ROUGE-1 lattice approximation, count awareness, and length bounding of 4, run:
 ```
-python3 src/mbr_rouge.py --rouge 1 --count_aware --d_length 4
+python3 src/mbr_rouge.py --lattice_metric rouge1 --count_aware --d_length 4
 ```
 To run our current best method (43.2 R1 / 20.5 R2 / 37.2 RL; MBR with unigram match lattice approximation, length bounding of 4, second-stage reranking over k=10 hypotheses, geometric mean of ROUGE1-6 as the reranking metric, and uniform scoring for unigram match):
 ```
