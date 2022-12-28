@@ -10,7 +10,7 @@ See the 'mbr' argument group in `setup.py` for a list of valid arguments. As an 
 ```
 python3 src/mbr_rouge.py --rouge 1 --count_aware --d_length 4
 ```
-To run our current best method (MBR with unigram match lattice approximation, length bounding of 4, second-stage reranking over k=10 hypotheses, geometric mean of ROUGE1-6 as the reranking metric, and uniform scoring for unigram match):
+To run our current best method (43.2 R1 / 20.5 R2 / 37.2 RL; MBR with unigram match lattice approximation, length bounding of 4, second-stage reranking over k=10 hypotheses, geometric mean of ROUGE1-6 as the reranking metric, and uniform scoring for unigram match):
 ```
 python3 -i src/mbr_rouge.py --lattice_metric match1 --d_length 4 --lattice_topk 10 --rerank_rouge 6 --match_uniform
 ```
