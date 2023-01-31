@@ -14,7 +14,6 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 with open("results.pkl", 'rb') as f:
     all_data = pickle.load(f)
 
-1/0
 results_dir = "/data/alexx/lattice-search/output/data/sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_zip_0.75_0.0_0.9"
 result_files = os.listdir(results_dir)
 
