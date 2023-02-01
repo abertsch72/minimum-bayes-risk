@@ -22,7 +22,9 @@ from rouge_score import rouge_scorer
 from transformers import AutoTokenizer
 
 from src.recom_search.evaluation.analysis import derive_path
-from src.recom_search.model.exec_setup import args
+from src.recom_search.model.exec_setup import args, grouped_args
+
+import wandb
 
 ###################################################
 # Short helper functions
@@ -64,10 +66,10 @@ def pairwise_similarity(topk_hypos, rerank_rouge_scorer, rerank_metrics):
     return sim_matrix
 
 def main():
-    wandb.init(project="lattice-decoding", entity="gormleylab")
+    wandb.init(project="lattice-decoding", entity="gormleylab", 
+               config=vars(grouped_args['mbr']))
     if args.run_name != '':
         wandb.run.name = args.run_name
-    wandb.config.update(args)
     
     if args.outfile is None:
         args.outfile = f"mbr_result_{args.lattice_metric}_dlen={args.d_length}"
@@ -94,7 +96,8 @@ def main():
     )
 
     # Results using best-first search with recombination + zip
-    results_dir = "output/data/sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_zip_0.75_0.0_0.9"
+    # results_dir = "output/data/sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_zip_0.75_0.0_0.9"
+    results_dir = "output/data/sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9"
     result_files = os.listdir(results_dir)
 
     use_rouge = args.lattice_metric.startswith('rouge')
@@ -236,6 +239,18 @@ def main():
     print("Oracle rouge-1 using MBR:", sum(data['oracle_rouge1'] for data in log_json) / len(log_json))
     print("Oracle rouge-2 using MBR:", sum(data['oracle_rouge2'] for data in log_json) / len(log_json))
     print("Oracle rouge-L using MBR:", sum(data['oracle_rougeL'] for data in log_json) / len(log_json))
+
+    keys = list(log_json[0].keys())
+    table_data = [[row[k] for k in keys] for row in log_json]
+    wandb.log({
+        'rouge1': sum(data['rouge1'] for data in log_json) / len(log_json),
+        'rouge2': sum(data['rouge2'] for data in log_json) / len(log_json),
+        'rougeL': sum(data['rougeL'] for data in log_json) / len(log_json),
+        'oracle_rouge1': sum(data['oracle_rouge1'] for data in log_json) / len(log_json),
+        'oracle_rouge2': sum(data['oracle_rouge2'] for data in log_json) / len(log_json),
+        'oracle_rougeL': sum(data['oracle_rougeL'] for data in log_json) / len(log_json),
+        'outputs': wandb.Table(data=table_data, columns=keys),
+    })
 
 
 if __name__ == '__main__':

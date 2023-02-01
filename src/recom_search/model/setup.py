@@ -200,9 +200,9 @@ def process_arg():
                         choices=['zip', 'rcb','none'])
 
     # Lattice MBR arguments
-    mbr_group = parser.add_argument_group('mbr', 'mbr args')
-    mbr_group.add_argument('--outfile', type=str, default=None, 
+    parser.add_argument('--outfile', type=str, default=None, 
                            help='file to save results to')
+    mbr_group = parser.add_argument_group('mbr', 'mbr args')
     mbr_group.add_argument('--lattice_metric', type=str, default='rouge1',
                            help='metric for MBR approximation in lattice',
                            choices=['rouge1', 'rouge2', 'match1', 'match2'])
@@ -228,7 +228,14 @@ def process_arg():
     mbr_group.add_argument('--run_name', type=str, default='',
                            help='name for WANDB run')
 
-    global args 
+    global args
+    global grouped_args
+
     args = parser.parse_args()
-    return args
+    grouped_args = {}
+    for group in parser._action_groups:
+        group_dict={a.dest:getattr(args,a.dest,None) for a in group._group_actions}
+        grouped_args[group.title]=argparse.Namespace(**group_dict)
+
+    return args, grouped_args
 
