@@ -10,6 +10,7 @@ import json
 from functools import lru_cache
 from collections import deque
 from pprint import pprint
+import wandb
 
 from lattice import Lattice
 
@@ -63,6 +64,11 @@ def pairwise_similarity(topk_hypos, rerank_rouge_scorer, rerank_metrics):
     return sim_matrix
 
 def main():
+    wandb.init(project="lattice-decoding", entity="gormleylab")
+    if args.run_name != '':
+        wandb.run.name = args.run_name
+    wandb.config.update(args)
+    
     if args.outfile is None:
         args.outfile = f"mbr_result_{args.lattice_metric}_dlen={args.d_length}"
         args.outfile += '_unif' if args.uniform else ''
@@ -210,6 +216,9 @@ def main():
             'oracle_rouge2': oracle_scores['rouge2'].fmeasure,
             'oracle_rougeL': oracle_scores['rougeL'].fmeasure
         })
+        wandb.log(log_json[-1])
+
+
 
     with open(args.outfile, 'w+') as f:
         json.dump(log_json, f)

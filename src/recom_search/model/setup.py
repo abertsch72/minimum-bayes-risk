@@ -225,6 +225,8 @@ def process_arg():
                                 'defaults to same value as lattice_topk')
     mbr_group.add_argument('--rerank_rouge', type=str, default='2',
                            help='ROUGE-n for top-k reranking')
+    mbr_group.add_argument('--run_name', type=str, default='',
+                           help='name for WANDB run')
 
     global args 
     args = parser.parse_args()
