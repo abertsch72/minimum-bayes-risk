@@ -217,6 +217,13 @@ def process_arg():
                            help='use uniform scoring for expected match calculation only')
     mbr_group.add_argument('--d_length', type=int, default=float('inf'),
                            help='min/max length deviation from mean')
+
+    mbr_group.add_argument('--mean_override', type=int, default=-1,
+                           help='value to override the mean with (-1 means use the actual mean)')
+
+    mbr_group.add_argument('--target_length', type=int, default=None,
+                           help='length to restrict evidence to (exact)')
+
     # Arguments for second stage MBR re-ranking
     mbr_group.add_argument('--lattice_topk', type=int, default=1,
                            help='number of top gain hypotheses to track in lattice')

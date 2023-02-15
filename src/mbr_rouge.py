@@ -96,8 +96,8 @@ def main():
     )
 
     # Results using best-first search with recombination + zip
-    # results_dir = "output/data/sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_zip_0.75_0.0_0.9"
-    results_dir = "output/data/sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9"
+    results_dir = "output/data/sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_zip_0.75_0.0_0.9"
+    #results_dir = "output/data/sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9"
     result_files = os.listdir(results_dir)
 
     use_rouge = args.lattice_metric.startswith('rouge')
@@ -123,6 +123,8 @@ def main():
 
         lengths = np.array(sorted(length_dict.keys()))
         length_dist_unnorm = np.exp([length_dict[n][0] for n in lengths]) / lengths**args.length_alpha
+        #lengths = np.array(sorted(all_node_length_dict.keys()))
+        length_dist_raw = [length_dict[n][0] for n in lengths]
         length_dist = length_dist_unnorm / np.sum(length_dist_unnorm)
         avg_len_weighted = np.sum(length_dist * lengths)
 
@@ -132,12 +134,15 @@ def main():
 
         # get n-gram match dictionary
         get_ngram_dict_fn = getattr(lattice, get_ngram_dict_method_name)
-        ngram_dict, all_node_ngram_dict = get_ngram_dict_fn(all_node_length_dict)
+        ngram_dict, all_node_ngram_dict = get_ngram_dict_fn(all_node_length_dict, target_length=args.target_length)
 
         match_unweighted = {word: count / total_num_paths for word, (_, count) in ngram_dict.items()}
         match_weighted = {word: np.exp(lprob) for word, (lprob, _) in ngram_dict.items()}
 
         mean_length = avg_len_unweighted if args.uniform else avg_len_weighted
+        if args.mean_override != -1:
+            mean_length = args.mean_override
+
         expected_match = match_unweighted if (args.uniform or args.match_uniform) else match_weighted
 
         # get top-k paths through lattice
@@ -219,7 +224,7 @@ def main():
             'oracle_rouge2': oracle_scores['rouge2'].fmeasure,
             'oracle_rougeL': oracle_scores['rougeL'].fmeasure
         })
-        wandb.log(log_json[-1])
+        #wandb.log(log_json[-1])
 
 
 
