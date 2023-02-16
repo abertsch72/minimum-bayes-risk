@@ -59,8 +59,8 @@ class Lattice(object):
                 else:
                     length_dict[length] = (length_lprob, length_count)
         keys = list(length_dict.keys())
-        print(keys)
-        print([length_dict[k][1] for k in keys])
+        #print(keys)
+        #print([length_dict[k][1] for k in keys])
         return length_dict
 
     def get_length_dict_bfs(self):
@@ -93,7 +93,7 @@ class Lattice(object):
                     break
             else:
                 not_done_parents = {parent for parent in self.reverse_edges[candidate_node] if parent not in visited}
-                print(not_done_parents)
+                #print(not_done_parents)
                 import pdb; pdb.set_trace()
                 raise Exception("No node has all parents done, throwing exception.")
             if curr_node in visited:
@@ -172,7 +172,7 @@ class Lattice(object):
         '''
         path_count_dict = {}
         for node, length_data in all_node_length_dict.items():
-            print(length_data)
+            #print(length_data)
             all_lprobs, total_count = [-float('inf')], 0
             for length, (lprob, c) in length_data.items():
                 if length > 30:
@@ -207,9 +207,16 @@ class Lattice(object):
 
         visited = {self.sos}
         def dfs_helper(node, length_to_here=0):
-            if (node, length_to_here) in visited:
-                return all_node_word_dict[node]
-            visited.add((node, length_to_here))
+            if target_length is not None:
+                if length_to_here >= target_length:
+                    return all_node_word_dict[node]
+                elif (node, length_to_here) in visited:
+                    return all_node_word_dict[node]
+                visited.add((node, length_to_here))
+            else:
+                if node in visited:
+                    return all_node_word_dict[node]
+                visited.add(node) 
 
             curr_word = self.nodes[node]['text']
             curr_word_dict = {} # word -> (total score, count)
