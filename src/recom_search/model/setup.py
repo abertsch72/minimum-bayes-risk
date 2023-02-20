@@ -224,6 +224,9 @@ def process_arg():
     mbr_group.add_argument('--target_length', type=int, default=None,
                            help='length to restrict evidence to (exact)')
 
+    mbr_group.add_argument('--length_deviation', type=int, default=0,
+                           help='allowed deviation from goal evidence set length)')
+
     # Arguments for second stage MBR re-ranking
     mbr_group.add_argument('--lattice_topk', type=int, default=1,
                            help='number of top gain hypotheses to track in lattice')

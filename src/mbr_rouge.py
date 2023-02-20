@@ -134,7 +134,7 @@ def main():
 
         # get n-gram match dictionary
         get_ngram_dict_fn = getattr(lattice, get_ngram_dict_method_name)
-        ngram_dict, all_node_ngram_dict = get_ngram_dict_fn(all_node_length_dict, target_length=args.target_length)
+        ngram_dict, all_node_ngram_dict = get_ngram_dict_fn(all_node_length_dict, target_length=args.target_length, allowed_deviation = args.length_deviation)
 
         match_unweighted = {word: count / total_num_paths for word, (_, count) in ngram_dict.items()}
         match_weighted = {word: np.exp(lprob) for word, (lprob, _) in ngram_dict.items()}

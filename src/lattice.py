@@ -175,11 +175,25 @@ class Lattice(object):
             #print(length_data)
             all_lprobs, total_count = [-float('inf')], 0
             for length, (lprob, c) in length_data.items():
-                if length > 30:
-                    all_lprobs.append(lprob)
-                    total_count += c
+                all_lprobs.append(lprob)
+                total_count += c
             path_count_dict[node] = (sps.logsumexp(all_lprobs), total_count)
         return path_count_dict
+
+
+    def _get_path_count_bounded_length(self, length_data, target_length, max_deviation):
+        '''
+        Returns dict mapping each node to 2-tuple containing
+        (total lprob of paths from sos token to that node,
+         # of paths from sos token to that node)
+        '''
+        all_lprobs, total_count = [-float('inf')], 0
+        for length, (lprob, c) in length_data.items():
+            if length <= target_length + max_deviation and length >= target_length - max_deviation:
+                all_lprobs.append(lprob)
+                total_count += c
+        return (sps.logsumexp(all_lprobs), total_count)
+    
 
     def _extract_word_dict(self, all_node_word_dict):
         word_dict = {}
@@ -189,7 +203,7 @@ class Lattice(object):
                 word_dict[word] = (np.logaddexp(old_lprob, word_lprob), old_count + word_count)
         return word_dict
 
-    def get_1gram_dict(self, all_node_length_dict, target_length=None):
+    def get_1gram_dict(self, all_node_length_dict, target_length=None, allowed_deviation=0):
         '''
         For each node v, for all words w, computes the total count & logprob 
         of all paths from SOS to v that contain w (a unigram)
@@ -205,18 +219,22 @@ class Lattice(object):
 
         all_node_word_dict = {node: {} for node in self.nodes}
 
-        visited = {self.sos}
+        visited = {self.sos: {}}
         def dfs_helper(node, length_to_here=0):
-            if target_length is not None:
-                if length_to_here >= target_length:
+            if node == self.sos:
+                return all_node_word_dict[node]
+            elif target_length is not None:
+                if length_to_here >= target_length + allowed_deviation:
                     return all_node_word_dict[node]
-                elif (node, length_to_here) in visited:
-                    return all_node_word_dict[node]
-                visited.add((node, length_to_here))
+                elif node in visited:
+                    # want to return if length to here is within deviation of visited length 
+                    if True in [(abs(length_to_here - visited_len) <= allowed_deviation) for visited_len in visited[node]]:
+                        return all_node_word_dict[node]
+                visited[node] = visited.get(node, []) + [length_to_here]
             else:
                 if node in visited:
                     return all_node_word_dict[node]
-                visited.add(node) 
+                visited[node] = {}
 
             curr_word = self.nodes[node]['text']
             curr_word_dict = {} # word -> (total score, count)
@@ -237,7 +255,7 @@ class Lattice(object):
             # The number of paths that contain the current word is equal
             # to the number of paths that reach the current node.
             if target_length is not None:
-                curr_word_dict[curr_word] = all_node_length_dict[node].get(target_length - (length_to_here + 1), (0,0))
+                curr_word_dict[curr_word] = self._get_path_count_bounded_length(all_node_length_dict[node], target_length - (length_to_here + 1), allowed_deviation)
             else:
                 curr_word_dict[curr_word] = path_count_dict[node]
             

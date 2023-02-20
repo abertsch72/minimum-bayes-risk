@@ -1,4 +1,8 @@
 [core]
-    remote = drivefolder
+    remote = myremote
 ['remote "drivefolder"']
     url = gdrive://1DZHfXBQe3RyO6crvw8w-OqwSkEZvtGOx
+['remote "defauly"']
+    url = gdrive:///1DZHfXBQe3RyO6crvw8w-OqwSkEZvtGOx
+['remote "myremote"']
+    url = gdrive:///1DZHfXBQe3RyO6crvw8w-OqwSkEZvtGOx

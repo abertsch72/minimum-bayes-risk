@@ -5,30 +5,37 @@ import subprocess
 import itertools
 
 choices = {
-    'lattice_metric': ['rouge1', 'rouge2', 'match1', 'match2'],
-    'match_uniform': [True, False],
-    'd_length': [4, None],
-    'lattice_topk': [1, 5, 10, 30],
-    'rerank_rouge': [1, 2, 6]
+    'lattice_metric': ['match1'],
+    'mean_override': [None],
+    'd_length': [None],
+    'count_aware': [False],
+    'match_uniform': [True],
+    'total_length': list(range(7,40)),
+    'deviation': list(range(0,10)),
 }
 
-def make_cmd(lattice_metric, match_uniform, d_length, lattice_topk, rerank_rouge):
+def make_cmd(lattice_metric, mean_override=None, d_length=None, count_aware=None, match_uniform=None, total_length=None, deviation=0):
     cmd = ["python3 src/mbr_rouge.py"]
     cmd.append(f'--lattice_metric {lattice_metric}')
-    if match_uniform:
-        cmd.append('--match_uniform')
+    if total_length:
+        cmd.append(f'--target_length {total_length}')
+    if mean_override:
+        cmd.append(f'--mean_override {mean_override}')
     if d_length is not None:
         cmd.append(f'--d_length {d_length}')
-    cmd.append(f'--lattice_topk {lattice_topk}')
-    cmd.append(f'--rerank_rouge {rerank_rouge}')
+    if count_aware:
+        cmd.append(f'--count_aware')
+    if match_uniform:
+        cmd.append(f'--match_uniform')
+    cmd.append(f'--length_deviation {deviation}')
     return ' '.join(cmd)
 
 keys = choices.keys()
 values = [choices[k] for k in keys]
 def main():
     for config in itertools.product(*values):
-        if config[-2] == 1 and config[-1] != 1:
-            continue
+        #if config[-2] == 1 and config[-1] != 1:
+        #    continue
         cmd = make_cmd(*config)
         subprocess.run(cmd.split(' '))
     
