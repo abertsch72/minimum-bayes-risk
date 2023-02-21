@@ -268,7 +268,7 @@ class Lattice(object):
         word_dict = self._extract_word_dict(all_node_word_dict)
         return word_dict, all_node_word_dict
 
-    def get_1gram_dict_count_aware(self, all_node_length_dict):
+    def get_1gram_dict_count_aware(self, all_node_length_dict, target_length=None, allowed_deviation=0):
         '''
         Same as get_1gram_dict, but with count-aware adjustment
         to counts.
@@ -338,7 +338,7 @@ class Lattice(object):
         word_dict = self._extract_word_dict(all_node_word_dict)
         return word_dict, all_node_word_dict
 
-    def get_2gram_dict(self, all_node_length_dict):
+    def get_2gram_dict(self, all_node_length_dict, target_length=None, allowed_deviation=0):
         '''
         Same as get_1gram_dict, but with bigrams (i.e. (w, w') pairs) 
         instead of unigrams.
@@ -380,7 +380,10 @@ class Lattice(object):
                             curr_word_dict[bigram] = (added_lprob, parent_count)
                 
                 old_lprob, old_count = curr_word_dict.get(curr_bigram, (-float('inf'), 0))
-                parent_lprob, parent_count = path_count_dict[parent_node] 
+                if target_length is not None:
+                    parent_lprob, parent_count = self._get_path_count_bounded_length(all_node_length_dict[parent_node], target_length - (length_to_here + 1), allowed_deviation)
+                else:
+                    parent_lprob, parent_count = path_count_dict[parent_node] 
                 added_lprob = parent_lprob + edge_lprob
                 curr_word_dict[curr_bigram] = (np.logaddexp(old_lprob, added_lprob),
                                                old_count + parent_count)
@@ -394,7 +397,7 @@ class Lattice(object):
         word_dict = self._extract_word_dict(all_node_word_dict)
         return word_dict, all_node_word_dict
 
-    def get_2gram_dict_count_aware(self, all_node_length_dict):
+    def get_2gram_dict_count_aware(self, all_node_length_dict, target_length=None, allowed_deviation=0):
         '''
         Same as get_1gram_dict_count_aware but with bigrams instead of unigrams.
 
