@@ -20,7 +20,7 @@ from src.recom_search.model.util import pnum, render_name, run_inference_step
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
 
 
-def step_bfs_rcb_any(tokenizer, start_seed: BeamNodeFull, hash: HashObject, heap, doc_input_ids, model, param_sim_function, use_heuristic: bool, avg_score, max_len: int, expl_steps: int, k_best: int, heu_func: DeployHeu=None, temperature_sample: bool = False) -> Tuple[Any, int]:
+def step_bfs_rcb_any(tokenizer, start_seed: BeamNodeFull, hash: HashObject, heap, doc_input_ids, model, param_sim_function, use_heuristic: bool, avg_score, max_len: int, expl_steps: int, k_best: int, heu_func: DeployHeu=None, T: float=1.0, temperature_sample: bool = False) -> Tuple[Any, int]:
     finished_hypos = []
     step = 0
     ngram_suffix = param_sim_function['ngram_suffix']
@@ -38,7 +38,7 @@ def step_bfs_rcb_any(tokenizer, start_seed: BeamNodeFull, hash: HashObject, heap
         cur_dec_input_ids = pointer.all_token_idx
         dec_prefix = pointer.get_token_idx_as_input()
         _, output_prob, _, _ = run_inference_step(
-            model, doc_input_ids, decoder_input_ids=dec_prefix, device=doc_input_ids.device, output_dec_hid=False, temperature_sample=temperature_sample)
+            model, doc_input_ids, decoder_input_ids=dec_prefix, device=doc_input_ids.device, output_dec_hid=False, T=T, temperature_sample=temperature_sample)
 
         values, indices = torch.topk(output_prob, k=k_best)
         values = values[0].tolist()
@@ -140,6 +140,7 @@ def bfs_rcb_any(model, tokenizer,
            max_len: Optional[int],
            k_best: Optional[int],
            comp_budget: Optional[int],
+           T: float=1.0,
            temperature_sample: bool = False):
     r"""
     """
@@ -186,7 +187,7 @@ def bfs_rcb_any(model, tokenizer,
             expl_steps = max_len
         else:
             expl_steps = 1
-        completed_hyps, added_num_calls = step_bfs_rcb_any(tokenizer,  seed, core_hash_obj, heap, doc_input_ids, model, param_sim_function, config_search['heu'], avg_score, max_len=max_len, k_best=k_best, heu_func=heu_func, expl_steps=expl_steps, temperature_sample=temperature_sample)
+        completed_hyps, added_num_calls = step_bfs_rcb_any(tokenizer,  seed, core_hash_obj, heap, doc_input_ids, model, param_sim_function, config_search['heu'], avg_score, max_len=max_len, k_best=k_best, heu_func=heu_func, expl_steps=expl_steps, T=T, temperature_sample=temperature_sample)
 
         ncalls += added_num_calls
         finished_hypos += completed_hyps
@@ -206,7 +207,7 @@ def bfs_rcb_any(model, tokenizer,
         expl_steps = max(1, max_len - seed.length)
         empty_heap = [] # at this stage, we do not put new nodes in the heap, hence we only need an empty heap. 
 
-        completed_hyps, added_num_calls = step_bfs_rcb_any(tokenizer,  seed, core_hash_obj, empty_heap, doc_input_ids, model, param_sim_function, config_search['heu'], avg_score, max_len=max_len, k_best=k_best, heu_func=heu_func, expl_steps=expl_steps, temperature_sample=temperature_sample)
+        completed_hyps, added_num_calls = step_bfs_rcb_any(tokenizer,  seed, core_hash_obj, empty_heap, doc_input_ids, model, param_sim_function, config_search['heu'], avg_score, max_len=max_len, k_best=k_best, heu_func=heu_func, expl_steps=expl_steps, T=T, temperature_sample=temperature_sample)
         ncalls += added_num_calls
         finished_hypos += completed_hyps
     for hypo in finished_hypos:

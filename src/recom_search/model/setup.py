@@ -185,7 +185,8 @@ def process_arg():
     parser.add_argument('-post_ratio', type=float, default=0.4,
                         help='our model: ratio of resource allocation')
     parser.add_argument('-temperature_sample', type=bool, default=False, action="store_true", help="whether to use temperature sampling instead of best match in search")
-    
+    parser.add_argument('-T', type=float, default=1.0, help="temperature for temperature sampling; crowd sampling recommends 0.7; use default (1.0) for non-temp-sampling methods")
+
     # start of depricated
     parser.add_argument('-heu_seq_score', type=float, default=0.0,
                         help='Heuristic: consider the score of previously generated sequence. this is the weight term for that')
