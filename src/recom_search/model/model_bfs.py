@@ -14,7 +14,7 @@ from src.recom_search.model.util import run_inference_step
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
 
 
-def step_bfs(tokenizer, start_seed: BeamNodeEz, heap, doc_input_ids, model, use_heuristic: bool, avg_score, max_len: int, expl_steps: int, k_best: int, heu_func: DeployHeu) -> Tuple[Any, int]:
+def step_bfs(tokenizer, start_seed: BeamNodeEz, heap, doc_input_ids, model, use_heuristic: bool, avg_score, max_len: int, expl_steps: int, k_best: int, heu_func: DeployHeu, temperature_sample: bool=False) -> Tuple[Any, int]:
     step = 0
     finished_hypos = []
     pointer = start_seed
@@ -26,7 +26,7 @@ def step_bfs(tokenizer, start_seed: BeamNodeEz, heap, doc_input_ids, model, use_
         step += 1
         dec_prefix = pointer.get_token_idx_as_input()
         _, output_prob, _, _ = run_inference_step(
-            model, doc_input_ids, decoder_input_ids=dec_prefix, device=doc_input_ids.device, output_dec_hid=False)
+            model, doc_input_ids, decoder_input_ids=dec_prefix, device=doc_input_ids.device, output_dec_hid=False, temperature_sample=temperature_sample)
 
         values, indices = torch.topk(output_prob, k=k_best)
         values = values[0].tolist()
@@ -93,7 +93,8 @@ def bfs(model, tokenizer,
            avg_score,
            max_len: Optional[int],
            k_best: Optional[int],
-           comp_budget: Optional[int]):
+           comp_budget: Optional[int], 
+           temperature_sample: bool):
 
     ncalls = 0
     heu_func = DeployHeu(config_heu)
@@ -129,7 +130,7 @@ def bfs(model, tokenizer,
         else:
             expl_steps = 1          # vanilla best first search only takes 1 step every time
 
-        completed_hyps, added_num_calls = step_bfs(tokenizer, seed, heap, doc_input_ids, model,  config_search['heu'], avg_score, max_len=max_len, k_best=k_best, heu_func=heu_func, expl_steps=expl_steps)
+        completed_hyps, added_num_calls = step_bfs(tokenizer, seed, heap, doc_input_ids, model,  config_search['heu'], avg_score, max_len=max_len, k_best=k_best, heu_func=heu_func, expl_steps=expl_steps, temperature_sample=temperature_sample)
         ncalls += added_num_calls  
         if completed_hyps:
             finished_hypos += completed_hyps
@@ -140,7 +141,7 @@ def bfs(model, tokenizer,
         _, seed = heapq.heappop(heap)
         expl_steps = max(1, max_len - seed.length)
         empty_heap = [] # at this stage, we do not put new nodes in the heap, hence we only need an empty heap. 
-        completed_hyps, added_num_calls = step_bfs(tokenizer, seed, empty_heap, doc_input_ids, model,  config_search['heu'], avg_score, max_len=max_len, k_best=k_best, heu_func=heu_func, expl_steps=expl_steps)
+        completed_hyps, added_num_calls = step_bfs(tokenizer, seed, empty_heap, doc_input_ids, model,  config_search['heu'], avg_score, max_len=max_len, k_best=k_best, heu_func=heu_func, expl_steps=expl_steps, temperature_sample=temperature_sample)
         ncalls += added_num_calls
         finished_hypos += completed_hyps
 

@@ -53,7 +53,7 @@ def run_bs_recombination(args, model, input_doc, dec_prefix, param_sim_function,
     else:
         adj_batch_size = args.beam_size
     output = recomb_baseline(doc_input_ids=input_ids, dec_prefix=dec_prefix, param_sim_function=param_sim_function,
-                              model=model, debug=False, beam_size=adj_batch_size, max_len=cur_max_len, avg_score=args.avg_score)
+                              model=model, debug=False, beam_size=adj_batch_size, max_len=cur_max_len, avg_score=args.avg_score, temperature_sample=args.temperature_sample)
     mo = SearchModelOutput(ends=output)
     return mo
 
@@ -81,7 +81,7 @@ def run_bfs(args, model, tokenizer, inp, dec_prefix, param_sim_function, config_
     else:
         comp_budget = args.max_len * args.beam_size
         cur_max_len = args.max_len
-    output = bfs(doc_input_ids=input_ids, model=model, tokenizer=tokenizer, param_sim_function=param_sim_function, dec_prefix=dec_prefix, avg_score=args.avg_score, max_len=cur_max_len, k_best=args.k_best, comp_budget=comp_budget, config_heu=None, config_search=config_search)
+    output = bfs(doc_input_ids=input_ids, model=model, tokenizer=tokenizer, param_sim_function=param_sim_function, dec_prefix=dec_prefix, avg_score=args.avg_score, max_len=cur_max_len, k_best=args.k_best, comp_budget=comp_budget, config_heu=None, config_search=config_search, temperature_sample = args.temperature_sample)
 
     mo = SearchModelOutput(ends=output)
     return mo

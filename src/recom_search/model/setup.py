@@ -184,6 +184,7 @@ def process_arg():
                         const=True, default=False, help='our model: always generate till the end once touch a node')
     parser.add_argument('-post_ratio', type=float, default=0.4,
                         help='our model: ratio of resource allocation')
+    parser.add_argument('-temperature_sample', type=bool, default=False, action="store_true", help="whether to use temperature sampling instead of best match in search")
     
     # start of depricated
     parser.add_argument('-heu_seq_score', type=float, default=0.0,

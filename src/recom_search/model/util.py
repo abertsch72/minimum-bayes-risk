@@ -79,7 +79,7 @@ def render_name(task, data, mname, doc_id, inp_doc_str: str, beam_sz: int, max_l
 
 
 @torch.no_grad()
-def run_inference_step(model, input_ids, attention_mask=None, decoder_input_ids=None, targets=None, device='cuda:0', output_dec_hid=False, T=1):
+def run_inference_step(model, input_ids, attention_mask=None, decoder_input_ids=None, targets=None, device='cuda:0', output_dec_hid=False, T=1, temperature_sample=False):
     decoder_input_ids = decoder_input_ids.to(device)
     input_ids = input_ids.to(device)
     if attention_mask is not None:
@@ -106,7 +106,11 @@ def run_inference_step(model, input_ids, attention_mask=None, decoder_input_ids=
 
     prob = torch.nn.functional.softmax(next_token_logits/T, dim=-1)
     # prob = next_token_logits.softmax(dim=-1)
-    next_token = torch.argmax(next_token_logits, dim=-1)
+    if temperature_sample:
+        # https://gist.github.com/thomwolf/1a5a29f6962089e871b94cbd09daf317
+        next_token = torch.multinomial(prob, 1)
+    else:
+        next_token = torch.argmax(next_token_logits, dim=-1)
     # next_token = next_token.unsqueeze(-1)
     next_token = next_token.tolist()    # confrim nested list?
     # print(f"Gold: {tokenizer.decode(targets[0].item())}")
