@@ -167,12 +167,16 @@ def run_model(args, tokenizer, model, dataset, dec_prefix, wt_dir):
 
     # logging.info(args)
     nexample = args.nexample
+    startexample = args.startexample
     cnt = 0
     if not isinstance(dataset, zip):
         dataset = dataset.shuffle(seed=2021)
 
     logging.info(f"Truncate dataset to {nexample} examples")
+    logging.info(f"Start generating at example #{startexample}")
     for idx, example in enumerate(tqdm(dataset)):
+        if idx < startexample:
+            continue
         cnt += 1
         if args.task.startswith('mt'):
             document = example[0]

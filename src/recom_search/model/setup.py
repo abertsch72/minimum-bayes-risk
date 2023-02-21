@@ -151,6 +151,7 @@ def process_arg():
                         'dbs', 'bs', 'greedy', 'topp', 'temp', 'bs_recom', 'sample_recom', 'bfs','bfs_recom'], default='bs')
     parser.add_argument('-beam_size', type=int, default=15)
     parser.add_argument('-nexample', type=int, default=100)
+    parser.add_argument('-startexample', type=int, default=0)
 
     parser.add_argument('-task', type=str, default='sum',
                         choices=['sum', 'mt1n', 'mtn1', 'custom'], help='for custom, you need to define your data IO')
