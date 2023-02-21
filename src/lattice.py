@@ -289,7 +289,7 @@ class Lattice(object):
         all_node_word_dict = {node: {} for node in self.nodes}
 
         visited = {self.sos}
-        def dfs_helper(node):
+        def dfs_helper(node, length_to_here=0):
             if node in visited:
                 return all_node_word_dict[node]
             visited.add(node)
@@ -298,7 +298,7 @@ class Lattice(object):
 
             curr_word_dict = {} # word -> (total score, count)
             for parent_node, edge_lprob in self.reverse_edges[node].items():
-                parent_word_dict = dfs_helper(parent_node)
+                parent_word_dict = dfs_helper(parent_node, length_to_here=length_to_here+1)
                 for word, (parent_lprob, parent_count) in parent_word_dict.items():
                     added_lprob = parent_lprob + edge_lprob
                     if word in curr_word_dict:
@@ -354,11 +354,22 @@ class Lattice(object):
 
         all_node_word_dict = {node: {} for node in self.nodes}
 
-        visited = {self.sos}
-        def dfs_helper(node):
-            if node in visited:
+        visited = {self.sos: {}}
+        def dfs_helper(node, length_to_here=0):
+            if node == self.sos:
                 return all_node_word_dict[node]
-            visited.add(node)
+            elif target_length is not None:
+                if length_to_here >= target_length + allowed_deviation:
+                    return all_node_word_dict[node]
+                elif node in visited:
+                    # want to return if length to here is within deviation of visited length 
+                    if True in [(abs(length_to_here - visited_len) <= allowed_deviation) for visited_len in visited[node]]:
+                        return all_node_word_dict[node]
+                visited[node] = visited.get(node, []) + [length_to_here]
+            else:
+                if node in visited:
+                    return all_node_word_dict[node]
+                visited[node] = {}
 
             curr_word = self.nodes[node]['text']
 
