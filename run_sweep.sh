@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=sweep-match
-#SBATCH --output=/projects/tir4/users/abertsch/huggingface-knnlm-port/logs/%x.out
-#SBATCH --err=/projects/tir4/users/abertsch/huggingface-knnlm-port/logs/%x.err
+#SBATCH --output=/projects/tir4/users/abertsch/lattice-search/logs/%x.out
+#SBATCH --err=/projects/tir4/users/abertsch/lattice-search/logs/%x.err
 #SBATCH --mem=16G
 #SBATCH --time=24:00:00
 #SBATCH --gres=gpu:1

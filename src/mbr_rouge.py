@@ -66,7 +66,7 @@ def pairwise_similarity(topk_hypos, rerank_rouge_scorer, rerank_metrics):
     return sim_matrix
 
 def main():
-    wandb.init(project="lattice-decoding", entity="gormleylab", 
+    wandb.init(project="lattice-decoding", entity="gormleylab", group="sweep1", 
                config=vars(grouped_args['mbr']))
     if args.run_name != '':
         wandb.run.name = args.run_name

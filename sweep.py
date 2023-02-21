@@ -5,20 +5,22 @@ import subprocess
 import itertools
 
 choices = {
-    'lattice_metric': ['match1'],
-    'mean_override': [None],
-    'd_length': [None],
+    'lattice_metric': ['match2', 'rouge2'],
+    'mean_override': [None, 20, 25, 30, 35],
+    'd_length': [None, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
     'count_aware': [False],
     'match_uniform': [True],
-    'total_length': list(range(7,40)),
-    'deviation': list(range(0,10)),
+    #'target_length': list(range(7,30)),
+    #'deviation': list(range(0,10)),
 }
+# uniform
+# length_alpha
+# 
 
-def make_cmd(lattice_metric, mean_override=None, d_length=None, count_aware=None, match_uniform=None, total_length=None, deviation=0):
-    cmd = ["python3 src/mbr_rouge.py"]
+
+def make_cmd(lattice_metric, mean_override, d_length, count_aware, match_uniform, target_length, deviation):
+    cmd = ["python3 src/mbr_rouge.py --rerank_topk 50"]
     cmd.append(f'--lattice_metric {lattice_metric}')
-    if total_length:
-        cmd.append(f'--target_length {total_length}')
     if mean_override:
         cmd.append(f'--mean_override {mean_override}')
     if d_length is not None:
@@ -27,6 +29,7 @@ def make_cmd(lattice_metric, mean_override=None, d_length=None, count_aware=None
         cmd.append(f'--count_aware')
     if match_uniform:
         cmd.append(f'--match_uniform')
+    cmd.append(f'--target_length {target_length}')
     cmd.append(f'--length_deviation {deviation}')
     return ' '.join(cmd)
 
