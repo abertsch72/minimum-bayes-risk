@@ -66,7 +66,7 @@ def pairwise_similarity(topk_hypos, rerank_rouge_scorer, rerank_metrics):
     return sim_matrix
 
 def main():
-    wandb.init(project="lattice-decoding", entity="gormleylab", group="sweep1", 
+    wandb.init(project="lattice-decoding", entity="gormleylab", group="sweep-reg-rouge1", 
                config=vars(grouped_args['mbr']))
     if args.run_name != '':
         wandb.run.name = args.run_name
@@ -96,7 +96,7 @@ def main():
     )
 
     # Results using best-first search with recombination + zip
-    results_dir = "output/data/sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_zip_0.75_0.0_0.9"
+    results_dir = "output/data/zip100" #"../lattice-gen/output/ziptune/" #"output/data/zip100" #sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_zip_0.75_0.0_0.9"
     #results_dir = "output/data/sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9"
     result_files = os.listdir(results_dir)
 
@@ -211,6 +211,7 @@ def main():
         log_json.append({
             'file': file,
             'max_rouge': best_rouge,
+            'topk_hypos': topk_hypos,
             'max_path': best_path,
             'ref': output.reference,
             'mbr_hypo': best_detokenized,
@@ -225,9 +226,11 @@ def main():
             'oracle_rougeL': oracle_scores['rougeL'].fmeasure
         })
         #wandb.log(log_json[-1])
+        lattice_topk_results.append({"all_50": topk_hypos, "gold": output.reference, "num_unique": len(set(topk_hypos))})
 
 
-
+    with jsonlines.open(args.outfile + "hypos", "w+") as f:
+        f.write_all(lattice_topk_results)
     with open(args.outfile, 'w+') as f:
         json.dump(log_json, f)
 
@@ -256,6 +259,9 @@ def main():
         'oracle_rougeL': sum(data['oracle_rougeL'] for data in log_json) / len(log_json),
         'outputs': wandb.Table(data=table_data, columns=keys),
     })
+
+    wandb.log({'topk': lattice_topk_results})
+    print(lattice_topk_results)
 
 
 if __name__ == '__main__':
