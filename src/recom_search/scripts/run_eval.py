@@ -97,7 +97,7 @@ def run_bfs_recombination(args, model, tokenizer, inp, dec_prefix, param_sim_fun
         'heu_word': args.heu_word
     }
     input_ids = tokenizer(
-        inp, return_tensors="pt").input_ids.to(args.device)
+        inp, return_tensors="pt", truncation=True, max_length=model.config.max_position_embeddings).input_ids.to(args.device)
     if args.max_len == -1:
         cur_max_len = input_ids.squeeze().size()[0] * 2
         comp_budget = cur_max_len * args.beam_size
@@ -169,8 +169,8 @@ def run_model(args, tokenizer, model, dataset, dec_prefix, wt_dir):
     nexample = args.nexample
     startexample = args.startexample
     cnt = 0
-    if not isinstance(dataset, zip):
-        dataset = dataset.shuffle(seed=2021)
+    #if not isinstance(dataset, zip):
+    #    dataset = dataset.shuffle(seed=2021)
 
     logging.info(f"Truncate dataset to {nexample} examples")
     logging.info(f"Start generating at example #{startexample}")
@@ -187,6 +187,8 @@ def run_model(args, tokenizer, model, dataset, dec_prefix, wt_dir):
             document = example['article']
             doc_id = example['id']
             ref_sum = example['highlights']
+            sents = document.split('\n')
+            inp = "\n".join(sents[:])[:5000]
         elif args.dataset == 'xsum':
             document = example['document']
             sents = document.split('\n')

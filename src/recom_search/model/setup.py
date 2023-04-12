@@ -20,7 +20,7 @@ def render_address(root = 'output') ->dict:
     create name of subdirectories
     """
     d = {
-        'data':os.path.join(root, 'data'),
+        'data':os.path.join(root, 'cnndm-zip'),
         'html':os.path.join(root, 'html'),
         'stat':os.path.join(root, 'stat'),
         'text':os.path.join(root, 'text'),
@@ -67,8 +67,8 @@ def setup_model(task='sum', dataset='xsum', model_name='facebook/bart-large-xsum
         if dataset == 'xsum':
             dataset = load_dataset("xsum", split='validation')
         elif dataset == 'cnndm':
-            raise NotImplementedError("not supported")
-            dataset = load_dataset("cnn_dailymail", split='validation')
+            #raise NotImplementedError("not supported")
+            dataset = load_dataset("cnn_dailymail", '3.0.0', split='validation')
             print("CNNDM mean token in ref 56")
         dec_prefix = [tokenizer.eos_token_id]
     elif task == 'mt1n':
@@ -184,7 +184,7 @@ def process_arg():
                         const=True, default=False, help='our model: always generate till the end once touch a node')
     parser.add_argument('-post_ratio', type=float, default=0.4,
                         help='our model: ratio of resource allocation')
-    parser.add_argument('-temperature_sample', type=bool, default=False, action="store_true", help="whether to use temperature sampling instead of best match in search")
+    parser.add_argument('-temperature_sample', default=False, action="store_true", help="whether to use temperature sampling instead of best match in search")
     parser.add_argument('-T', type=float, default=1.0, help="temperature for temperature sampling; crowd sampling recommends 0.7; use default (1.0) for non-temp-sampling methods")
 
     # start of depricated

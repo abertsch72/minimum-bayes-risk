@@ -43,6 +43,7 @@ def step_bfs_rcb_any(tokenizer, start_seed: BeamNodeFull, hash: HashObject, heap
         values, indices = torch.topk(output_prob, k=k_best)
         values = values[0].tolist()
         indices = indices[0].tolist()
+        #print(indices)
         token_txt = tokenizer.decode(indices[0]).strip().lower()
 
         top1_state = BeamNodeFull(hash=hash,
@@ -101,6 +102,7 @@ def step_bfs_rcb_any(tokenizer, start_seed: BeamNodeFull, hash: HashObject, heap
                 continue
             else:
                 seen_tokens.append(tok_txt)
+            #print(v)
             tmp_state = BeamNodeFull(hash=hash, prob=v, token_idx=i, prev=[pointer.uid], prev_score=[math.log(v)],master_node_uid=top1_state.uid)
             if tmp_state.finished or tmp_state.length >= max_len:  # if this branch is a completed one, just put it in the outputs.
                 finished_hypos.append(tmp_state)
