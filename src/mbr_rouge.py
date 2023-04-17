@@ -11,6 +11,7 @@ from functools import lru_cache
 from collections import deque
 from pprint import pprint
 import wandb
+import jsonlines
 
 from lattice import Lattice
 
@@ -96,7 +97,7 @@ def main():
     )
 
     # Results using best-first search with recombination + zip
-    results_dir = "output/data/zip100" #"../lattice-gen/output/ziptune/" #"output/data/zip100" #sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_zip_0.75_0.0_0.9"
+    results_dir = "output/data/250-zip-startat3k/" #"output/data/zip100" #"../lattice-gen/output/ziptune/" #"output/data/zip100" #sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_zip_0.75_0.0_0.9"
     #results_dir = "output/data/sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9"
     result_files = os.listdir(results_dir)
 
@@ -229,7 +230,7 @@ def main():
         lattice_topk_results.append({"all_50": topk_hypos, "gold": output.reference, "num_unique": len(set(topk_hypos))})
 
 
-    with jsonlines.open(args.outfile + "hypos", "w+") as f:
+    with jsonlines.open(args.outfile + "hypos", "w") as f:
         f.write_all(lattice_topk_results)
     with open(args.outfile, 'w+') as f:
         json.dump(log_json, f)
