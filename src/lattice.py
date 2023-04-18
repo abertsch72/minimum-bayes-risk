@@ -1,9 +1,13 @@
+import os
+import random
+import pickle
+
 import numpy as np
 import scipy.special as sps
 from typing import Dict, Tuple, List
 from heapdict import heapdict
 from collections import Counter
-import random
+from tqdm import tqdm
 
 class Lattice(object):
     def __init__(self, node_dict, edge_dict):
@@ -18,6 +22,7 @@ class Lattice(object):
         self.sos, self.eos_list, _ = self._find_start_end(node_dict, edge_dict)
         for eos in self.eos_list: # validate that eos nodes don't have any outgoing edges
             assert len(self.edges[eos]) == 0
+        self.eos_set = set(self.eos_list)
 
     def _find_start_end(self, nodes, edges):
         degree = {}
@@ -1325,3 +1330,34 @@ class Lattice(object):
             score = score + gain * np.exp(logprob)
 
         return score, match
+
+    ##################################################################
+    # Lattice I/O
+    ##################################################################
+
+    @staticmethod
+    def _read_result(dir, file):
+        with open(os.path.join(dir, file), 'rb') as f:
+            x = pickle.load(f)
+        return x
+
+    @staticmethod
+    def _get_graph(graph_ends):
+        all_nodes = {}
+        all_edges = {}
+        for end in graph_ends:
+            nodes, edges = end.visualization()
+            all_nodes.update(nodes)
+            all_edges.update(edges)
+        return all_nodes, all_edges
+
+    @staticmethod
+    def load_lattices(result_dir, no_tqdm=False):
+        '''
+        Iterator over lattices in `result_dir`
+        '''
+        result_files = os.listdir(result_dir)
+        for filename in tqdm(result_files, disable=no_tqdm):
+            output = Lattice._read_result(result_dir, filename)
+            nodes, edges = Lattice._get_graph(output.ends)
+            yield (Lattice(nodes, edges), output)

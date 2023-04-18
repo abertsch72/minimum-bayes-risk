@@ -50,9 +50,9 @@ def setup_model(task='sum', dataset='xsum', model_name='facebook/bart-large-xsum
     global tokenizer, model, data_set, dec_prefix
     device = torch.device(device_name)
     print(model_name)
-    config = AutoConfig.from_pretrained(model_name)
-    model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
-    tokenizer = AutoTokenizer.from_pretrained(model_name, padding=True, truncation=True, max_length=1024)
+    config = AutoConfig.from_pretrained(model_name, local_files_only=True)
+    model = AutoModelForSeq2SeqLM.from_pretrained(model_name, local_files_only=True)
+    tokenizer = AutoTokenizer.from_pretrained(model_name, padding=True, truncation=True, max_length=1024, local_files_only=True)
 
     if task == 'custom':
         # you need to store the input under the path_dataset folder
@@ -241,7 +241,7 @@ def process_arg():
     global args
     global grouped_args
 
-    args = parser.parse_args()
+    args, _ = parser.parse_known_args()
     grouped_args = {}
     for group in parser._action_groups:
         group_dict={a.dest:getattr(args,a.dest,None) for a in group._group_actions}
