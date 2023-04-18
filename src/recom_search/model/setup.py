@@ -128,7 +128,7 @@ def setup_logger(name):
     now_time = datetime.datetime.now()
     logname = f"logs/{name}{str(now_time)[:16]}.txt"
     logger = logging.getLogger()
-    logger.setLevel(logging.DEBUG)
+    logger.setLevel(logging.WARNING)
 
     handler = logging.StreamHandler(sys.stdout)
     handler.setLevel(logging.INFO)
@@ -203,9 +203,9 @@ def process_arg():
     parser.add_argument('--outfile', type=str, default=None, 
                            help='file to save results to')
     mbr_group = parser.add_argument_group('mbr', 'mbr args')
-    mbr_group.add_argument('--lattice_metric', type=str, default='rouge1',
+    mbr_group.add_argument('--lattice_metric', type=str, default=None,
                            help='metric for MBR approximation in lattice',
-                           choices=['rouge1', 'rouge2', 'match1', 'match2'])
+                           choices=['rouge1', 'rouge2', 'match1', 'match2', 'exact1'])
     mbr_group.add_argument('--uniform', action='store_true', default=False,
                            help='use uniform scoring instead of weighted lattice scores')
     mbr_group.add_argument('--count_aware', action='store_true',
@@ -223,7 +223,7 @@ def process_arg():
     mbr_group.add_argument('--rerank_topk', type=int, default=-1,
                            help='number of hypotheses for second-stage MBR reranking.' + \
                                 'defaults to same value as lattice_topk')
-    mbr_group.add_argument('--rerank_rouge', type=str, default='2',
+    mbr_group.add_argument('--rerank', type=str, default='2',
                            help='ROUGE-n for top-k reranking')
 
     global args

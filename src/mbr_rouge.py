@@ -10,6 +10,12 @@ import json
 from functools import lru_cache
 from collections import deque
 from pprint import pprint
+from transformers import AutoTokenizer
+import datasets
+try:
+    from bart_score.bart_score import BARTScorer
+except:
+    print("Unable to import bart_score.")
 
 from lattice import Lattice
 
@@ -18,12 +24,17 @@ sys.path.append("./")
 sys.path.append("./src/")
 
 from rouge_score import rouge_scorer
-from transformers import AutoTokenizer
+from transformers import AutoTokenizer, BertModel
 
 from src.recom_search.evaluation.analysis import derive_path
 from src.recom_search.model.exec_setup import args, grouped_args
 
 import wandb
+
+from typing import List
+import statistics
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 ###################################################
 # Short helper functions
@@ -49,6 +60,40 @@ def get_graph(graph_ends):
         all_edges.update(edges)
     return all_nodes, all_edges
 
+result_files = ['sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_38944626_Tess-Newal.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_38841897_Helen-Ross.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_36951809_The-first-.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_37329266_The-conser.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_38972281_Satnam-Sin.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_34688872_Media-play.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_32083717_The-musici.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_26237638_Prime-Mini.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_32319927_Mark-Jones.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_37439513_The-distri.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_34276797_The-polls-.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_37685083_Mladen-Gru.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_37480369_The-Irish-.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_28359094_Transport-.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_37328868_The-38-yea.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_36414580_Manager-Ch.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_40134723_The-former.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_36538967_The-24-yea.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_18173273_Researcher.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_37584589_7-October-.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_36918140_Members-of.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_35837959_The-cards,.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_36518750_The-46-yea.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_36033395_East-Linds.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_38722428_Shock-2015.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_35919641_29-March-2.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_40849171_Suleiman-A.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_39134538_He-will-ai.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_28872944_Researcher.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_29507419_Cornwall-C.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_30275513_Seven-of-h.pkl', "sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_35998891_Jon-Lewis'.pkl", 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_40141033_Armed-offi.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_40470133_Police,-fi.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_36784182_The-Dow-Jo.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_35899243_The-author.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_32318906_Media-play.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_38844702_Matthew-Ge.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_34784906_The-Russia.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_35027395_Both-men-w.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_38897462_Nyom-also-.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_38704934_The-Robins.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_39640064_The-Ports-.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_36986643_Striker-Em.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_40761453_The-vetera.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_34589891_The-power-.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_32242131_The-airlin.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_30792462_The-White-.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_31370822_The-blaze-.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_35994279_Three-sepa.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_37134709_AFB-was-co.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_40908381_Dave-Tarpe.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_28205563_The-victim.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_35625097_The-UK-wil.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_39801988_The-Anglo-.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_36588482_Ian-"Jacko.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_37472975_Government.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_38105023_Bribes-of-.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_26780897_The-Austra.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_26393852_Sosefina-A.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_36598609_Almost-1.7.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_36308067_Abdul-Hafi.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_39072865_It-is-the-.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_33810603_Neil-Fears.pkl', "sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_33849042_O'Grady-de.pkl", 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_30759868_The-18-ske.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_38721046_The-money-.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_32196037_On-5-April.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_35569627_Media-play.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_40594126_The-Juno-s.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_34709664_It-seemed-.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_38838606_Only-Itali.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_22152699_Cleveland-.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_33243677_Hughes,-19.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_25518137_In-the-196.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_24209153_She-bought.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_39005107_Media-play.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_33359978_The-idea-w.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_35953521_The-81-yea.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_34051870_The-photos.pkl', "sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_31067802_There's-no.pkl", 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_38211788_Nicholas-E.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_40962385_The-Welsh-.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_32860648_The-49-yea.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_35602332_Programs-s.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_34698579_There-were.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_30250624_He-returne.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_30704751_Mr-Mallon-.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_39254234_Isabel-Gen.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_39789892_Amarjeet-S.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_36397500_The-member.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_29026398_The-Englan.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_37662690_The-news-c.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_33594654_Researcher.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_19533038_GB-started.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_17745366_The-transi.pkl', "sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_40947448_Women's-ri.pkl", 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_36678976_They-were-.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_31030136_28-January.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_32963741_Paul-Thoma.pkl', 'sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9_34744153_Lawyers-fo.pkl']
+
+
+def compute_bertscore(topk_hypos, bertscore):
+    score = bertscore.compute(
+        predictions=topk_hypos, 
+        references=[topk_hypos for _ in range(len(topk_hypos))],
+        lang='en',
+        device=device,
+        batch_size=32
+    )
+    return score['f1']
+
+def compute_bartscore(topk_hypos, bartscore):
+    return bartscore.multi_ref_score(
+        srcs=topk_hypos, 
+        hypos=[topk_hypos for _ in range(len(topk_hypos))], 
+        agg="mean"
+    )
+
+from sacrebleu.metrics import BLEU
+bleu_scorer = BLEU(effective_order=True)
+
+def self_bleu(inp_group: List[str]):
+    # tok_inputs = tokenize_sentences(inp_group)
+    bleu_scores = []
+    for idx, inp in enumerate(inp_group):
+        # bleu_score = nltk.translate.bleu_score.sentence_bleu([x for jdx, x in enumerate(tok_inputs) if jdx != idx], inp)
+        bleu_score = bleu_scorer.sentence_score(
+            inp, [x for jdx, x in enumerate(inp_group) if jdx != idx])
+        bleu_scores.append(bleu_score.score)
+    return statistics.mean(bleu_scores)
+
+
 def pairwise_similarity(topk_hypos, rerank_rouge_scorer, rerank_metrics):
     actual_topk = len(topk_hypos)
     sim_matrix = np.zeros((actual_topk, actual_topk))
@@ -65,7 +110,9 @@ def pairwise_similarity(topk_hypos, rerank_rouge_scorer, rerank_metrics):
     return sim_matrix
 
 def main():
-    wandb.init(project="lattice-decoding", entity="alexxie", 
+    use_wandb = False
+    if use_wandb:
+        wandb.init(project="lattice-decoding", entity="alexxie", 
                config=vars(grouped_args['mbr']))
 
     if args.outfile is None:
@@ -83,21 +130,32 @@ def main():
     full_rouge_scorer = rouge_scorer.RougeScorer(
         ['rouge1', 'rouge2', 'rougeL'], use_stemmer=True)
 
-    if args.rerank_rouge == 'L':
+    rerank_metrics = ['rouge1']
+    if args.rerank == 'L':
         rerank_metrics = [f'rougeL']
+    elif args.rerank == 'bertscore':
+        bertscore = datasets.load_metric("bertscore")
+    elif args.rerank == 'bartscore':
+        bartscore = BARTScorer(device=device, checkpoint='facebook/bart-large-cnn')
+        bartscore.load(path='/data/alexx/lattice-search/bart_score/bart_score.pth')
     else:
-        assert args.rerank_rouge.isdigit()
-        rerank_metrics = [f'rouge{i+1}' for i in range(int(args.rerank_rouge))]
+        assert args.rerank.isdigit()
+        rerank_metrics = [f'rouge{i+1}' for i in range(int(args.rerank))]
     rerank_rouge_scorer = rouge_scorer.RougeScorer(
         rerank_metrics, use_stemmer=True
     )
 
     # Results using best-first search with recombination + zip
-    # results_dir = "output/data/sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_zip_0.75_0.0_0.9"
-    results_dir = "output/data/sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9"
+    results_dir = "output/data/sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_zip_0.75_0.0_0.9"
+    # results_dir = "output/data/sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9"
+    # results_dir = "output/data/sum_xsum_bs_16_35_False_0.4_False_False_4_5_zip_-1_0.0_0.9"
+    global result_files
     result_files = os.listdir(results_dir)
+    # print(result_files)
+    # result_files = result_files[:101]
 
     use_rouge = args.lattice_metric.startswith('rouge')
+    exact = 'exact' in args.lattice_metric
     order = args.lattice_metric[5:]
     get_ngram_dict_method_name = f"get_{order}gram_dict{'_count_aware' if args.count_aware else ''}"
     get_top_path_method_name = f"get_top_rouge{order}_path{'_count_aware' if args.count_aware else''}"
@@ -128,77 +186,104 @@ def main():
             avg_len_unweighted += length * count / total_num_paths
 
         # get n-gram match dictionary
-        get_ngram_dict_fn = getattr(lattice, get_ngram_dict_method_name)
-        ngram_dict, all_node_ngram_dict = get_ngram_dict_fn(all_node_length_dict)
+        if exact:
+            get_ngram_dict_fn = lattice.get_1gram_dict_by_length
+            ngram_dict, all_node_ngram_dict = get_ngram_dict_fn(
+                all_node_length_dict, 
+                max_length=1.5 * avg_len_weighted
+            )
+        else:
+            get_ngram_dict_fn = getattr(lattice, get_ngram_dict_method_name)
+            ngram_dict, all_node_ngram_dict = get_ngram_dict_fn(all_node_length_dict)
 
-        match_unweighted = {word: count / total_num_paths for word, (_, count) in ngram_dict.items()}
-        match_weighted = {word: np.exp(lprob) for word, (lprob, _) in ngram_dict.items()}
 
-        mean_length = avg_len_unweighted if args.uniform else avg_len_weighted
-        expected_match = match_unweighted if (args.uniform or args.match_uniform) else match_weighted
+            match_unweighted = {word: count / total_num_paths for word, (_, count) in ngram_dict.items()}
+            match_weighted = {word: np.exp(lprob) for word, (lprob, _) in ngram_dict.items()}
+
+            mean_length = avg_len_unweighted if args.uniform else avg_len_weighted
+            expected_match = match_unweighted if (args.uniform or args.match_uniform) else match_weighted
+
+            ref_tokens = tokenizer(output.reference)['input_ids']
+            # print(avg_len_weighted, avg_len_unweighted, len(ref_tokens))
+
+        gold_length = len(output.reference.split(' '))
 
         # get top-k paths through lattice
-        get_top_path_fn = getattr(lattice, get_top_path_method_name)
-        topk_paths, topk_rouges, all_node_rouge_dict = get_top_path_fn(
-            mean_length,
-            expected_match,
-            d_length=args.d_length,
-            uniform=args.uniform,
-            lattice_topk=args.lattice_topk,
-            return_topk=args.rerank_topk,
-            use_rouge=use_rouge
-        )
-
-        '''
-        playing around with different values of rerank_topk
-        (i.e. only track lattice_topk in DP search, but consider rerank_topk
-        in second-stage MBR reranking)
-
-        topk_results = {}
-        for rerank_topk in (1, 5, 10, 20, 30, 50, 70, 100):
-            ret_topk_paths, _ = lattice._extract_topk_gain_paths(
-                all_node_rouge_dict,
-                min_length=mean_length-args.d_length,
-                max_length=mean_length+args.d_length,
-                topk=rerank_topk
+        if exact:
+            get_top_path_fn = lattice.get_top_rouge1_path_exact
+            topk_paths, topk_rouges, all_node_rouge_dict = get_top_path_fn(
+                # mean_length,
+                avg_len_weighted,
+                # gold_length,
+                # expected_match,
+                ngram_dict,
+                # d_length=args.d_length,
+                # uniform=args.uniform,
+                lattice_topk=args.lattice_topk,
+                return_topk=args.rerank_topk,
+                # use_rouge=use_rouge
             )
-            ret_topk_token_ids = [lattice.get_path_tokens(path) for path in ret_topk_paths]
-            ret_topk_hypos = [tokenizer.decode(token_ids, skip_special_tokens=True) for token_ids in ret_topk_token_ids]
-
-            sim_matrix = pairwise_similarity(ret_topk_hypos, rerank_rouge_scorer, rerank_metrics)
-            max_idx_ = np.argmax(np.sum(sim_matrix, axis=-1))
-            ret_best_detokenized = ret_topk_hypos[max_idx_]
-
-            ret_rouge_scores = full_rouge_scorer.score(
-                output.reference,
-                ret_best_detokenized
+        else:
+            get_top_path_fn = getattr(lattice, get_top_path_method_name)
+            topk_paths, topk_rouges, all_node_rouge_dict = get_top_path_fn(
+                mean_length,
+                expected_match,
+                d_length=args.d_length,
+                uniform=args.uniform,
+                lattice_topk=args.lattice_topk,
+                return_topk=args.rerank_topk,
+                use_rouge=use_rouge
             )
-            topk_results[rerank_topk] = {
-                'hypo': ret_best_detokenized,
-                'rouge1': ret_rouge_scores['rouge1'].fmeasure,
-                'rouge2': ret_rouge_scores['rouge2'].fmeasure,
-                'rougeL': ret_rouge_scores['rougeL'].fmeasure
-            }
-        lattice_topk_results.append(topk_results)
-        '''
 
         topk_token_ids = [lattice.get_path_tokens(path) for path in topk_paths]
         topk_hypos = [tokenizer.decode(token_ids, skip_special_tokens=True) for token_ids in topk_token_ids]
-
-        sim_matrix = pairwise_similarity(topk_hypos, rerank_rouge_scorer, rerank_metrics)
-        max_idx = np.argmax(np.sum(sim_matrix, axis=-1))
+        # topk_hypos = output.output
+        
+        if args.rerank == 'bertscore':
+            f1s = compute_bertscore(topk_hypos, bertscore)
+            max_idx = np.argmax(f1s)
+        elif args.rerank == 'bartscore':
+            bartscores = compute_bartscore(topk_hypos, bartscore)
+            max_idx = np.argmax(bartscores)
+        else:
+            sim_matrix = pairwise_similarity(topk_hypos, rerank_rouge_scorer, rerank_metrics)
+            max_idx = np.argmax(np.sum(sim_matrix, axis=-1))
 
         oracle_topk_rouges = [full_rouge_scorer.score(output.reference, hypo) for hypo in topk_hypos]
-        oracle_idx = max(range(len(topk_rouges)), key=lambda i: oracle_topk_rouges[i]['rouge2'].fmeasure)
+        def eval_idx(i):
+            eps = 1e-4
+            r1 = oracle_topk_rouges[i]['rouge1'].fmeasure + eps
+            r2 = oracle_topk_rouges[i]['rouge2'].fmeasure + eps
+            rL = oracle_topk_rouges[i]['rougeL'].fmeasure + eps
+            return (r1 * r2 * rL)**(1/3)
+
+        oracle_idx = max(range(len(topk_hypos)), key=eval_idx)
+        worst_oracle_idx = min(range(len(topk_hypos)), key=eval_idx)
 
         best_detokenized = topk_hypos[max_idx]
-        best_path = topk_paths[max_idx]
-        best_rouge = topk_rouges[max_idx]
+        # best_path = topk_paths[max_idx]
+        # best_rouge = topk_rouges[max_idx]
+        best_path, best_rouge = None, None
+        avg_len_weighted = avg_len_unweighted = None
 
         oracle_detokenized = topk_hypos[oracle_idx]
+        worst_oracle_detokenized = topk_hypos[worst_oracle_idx]
 
         rouge_scores = full_rouge_scorer.score(output.reference, best_detokenized)
         oracle_scores = full_rouge_scorer.score(output.reference, oracle_detokenized)
+        worst_oracle_scores = full_rouge_scorer.score(output.reference, worst_oracle_detokenized)
+
+        topk_self_bleu = self_bleu(topk_hypos) if len(topk_hypos) > 1 else 1.0
+
+        dups = []
+        seen = set()
+        for i, hypo in enumerate(topk_hypos):
+            if hypo in seen:
+                dups.append((hypo, i))
+            else:
+                seen.add(hypo)
+        if len(dups) > 0:
+            import pdb; pdb.set_trace()
 
         log_json.append({
             'file': file,
@@ -214,7 +299,15 @@ def main():
             'rougeL': rouge_scores['rougeL'].fmeasure,
             'oracle_rouge1': oracle_scores['rouge1'].fmeasure,
             'oracle_rouge2': oracle_scores['rouge2'].fmeasure,
-            'oracle_rougeL': oracle_scores['rougeL'].fmeasure
+            'oracle_rougeL': oracle_scores['rougeL'].fmeasure,
+            'worst_oracle_rouge1': worst_oracle_scores['rouge1'].fmeasure,
+            'worst_oracle_rouge2': worst_oracle_scores['rouge2'].fmeasure,
+            'worst_oracle_rougeL': worst_oracle_scores['rougeL'].fmeasure,
+            'self_bleu': topk_self_bleu,
+            'unique': len(set(topk_hypos)) / len(topk_hypos),
+            'average_rouge1': sum(r['rouge1'].fmeasure for r in oracle_topk_rouges) / len(oracle_topk_rouges),
+            'average_rouge2': sum(r['rouge2'].fmeasure for r in oracle_topk_rouges) / len(oracle_topk_rouges),
+            'average_rougeL': sum(r['rougeL'].fmeasure for r in oracle_topk_rouges) / len(oracle_topk_rouges),
         })
 
     with open(args.outfile, 'w+') as f:
@@ -227,24 +320,39 @@ def main():
     #         scores += [results['rouge1'], results['rouge2'], results['rougeL']]
     #     print(f'rerank_topk = {rerank_topk}: ', scores / len(lattice_topk_results))
 
+    k = len(topk_hypos)
+
     print("Average rouge-1 using MBR:", sum(data['rouge1'] for data in log_json) / len(log_json))
     print("Average rouge-2 using MBR:", sum(data['rouge2'] for data in log_json) / len(log_json))
     print("Average rouge-L using MBR:", sum(data['rougeL'] for data in log_json) / len(log_json))
+    print()
     print("Oracle rouge-1 using MBR:", sum(data['oracle_rouge1'] for data in log_json) / len(log_json))
     print("Oracle rouge-2 using MBR:", sum(data['oracle_rouge2'] for data in log_json) / len(log_json))
     print("Oracle rouge-L using MBR:", sum(data['oracle_rougeL'] for data in log_json) / len(log_json))
+    print()
+    print("Lowest Oracle rouge-1 using MBR:", sum(data['worst_oracle_rouge1'] for data in log_json) / len(log_json))
+    print("Lowest Oracle rouge-2 using MBR:", sum(data['worst_oracle_rouge2'] for data in log_json) / len(log_json))
+    print("Lowest Oracle rouge-L using MBR:", sum(data['worst_oracle_rougeL'] for data in log_json) / len(log_json))
+    print()
+    print(f"Average rouge-1 of top-{k}:", sum(data['average_rouge1'] for data in log_json) / len(log_json))
+    print(f"Average rouge-2 of top-{k}:", sum(data['average_rouge2'] for data in log_json) / len(log_json))
+    print(f"Average rouge-L of top-{k}:", sum(data['average_rougeL'] for data in log_json) / len(log_json))
+    print(f"Self-BLEU of top-{k}:", sum(data['self_bleu'] for data in log_json) / len(log_json))
+    print(f"% Unique among top-{k}:", sum(data['unique'] for data in log_json) / len(log_json))
 
     keys = list(log_json[0].keys())
     table_data = [[row[k] for k in keys] for row in log_json]
-    wandb.log({
-        'rouge1': sum(data['rouge1'] for data in log_json) / len(log_json),
-        'rouge2': sum(data['rouge2'] for data in log_json) / len(log_json),
-        'rougeL': sum(data['rougeL'] for data in log_json) / len(log_json),
-        'oracle_rouge1': sum(data['oracle_rouge1'] for data in log_json) / len(log_json),
-        'oracle_rouge2': sum(data['oracle_rouge2'] for data in log_json) / len(log_json),
-        'oracle_rougeL': sum(data['oracle_rougeL'] for data in log_json) / len(log_json),
-        'outputs': wandb.Table(data=table_data, columns=keys),
-    })
+    if use_wandb:
+        wandb.log({
+            'rouge1': sum(data['rouge1'] for data in log_json) / len(log_json),
+            'rouge2': sum(data['rouge2'] for data in log_json) / len(log_json),
+            'rougeL': sum(data['rougeL'] for data in log_json) / len(log_json),
+            'oracle_rouge1': sum(data['oracle_rouge1'] for data in log_json) / len(log_json),
+            'oracle_rouge2': sum(data['oracle_rouge2'] for data in log_json) / len(log_json),
+            'oracle_rougeL': sum(data['oracle_rougeL'] for data in log_json) / len(log_json),
+            'self_bleu': sum(data['self_bleu'] for data in log_json) / len(log_json),
+            'outputs': wandb.Table(data=table_data, columns=keys),
+        })
 
 
 if __name__ == '__main__':
