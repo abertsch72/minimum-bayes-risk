@@ -16,6 +16,8 @@ try:
     from bart_score.bart_score import BARTScorer
 except:
     print("Unable to import bart_score.")
+import wandb
+import jsonlines
 
 from lattice import Lattice
 
@@ -110,11 +112,11 @@ def pairwise_similarity(topk_hypos, rerank_rouge_scorer, rerank_metrics):
     return sim_matrix
 
 def main():
-    use_wandb = False
-    if use_wandb:
-        wandb.init(project="lattice-decoding", entity="alexxie", 
+    wandb.init(project="lattice-decoding", entity="gormleylab", group="sweep-reg-rouge1", 
                config=vars(grouped_args['mbr']))
-
+    if args.run_name != '':
+        wandb.run.name = args.run_name
+    
     if args.outfile is None:
         args.outfile = f"mbr_result_{args.lattice_metric}_dlen={args.d_length}"
         args.outfile += '_unif' if args.uniform else ''
@@ -178,6 +180,8 @@ def main():
 
         lengths = np.array(sorted(length_dict.keys()))
         length_dist_unnorm = np.exp([length_dict[n][0] for n in lengths]) / lengths**args.length_alpha
+        #lengths = np.array(sorted(all_node_length_dict.keys()))
+        length_dist_raw = [length_dict[n][0] for n in lengths]
         length_dist = length_dist_unnorm / np.sum(length_dist_unnorm)
         avg_len_weighted = np.sum(length_dist * lengths)
 
@@ -194,19 +198,17 @@ def main():
             )
         else:
             get_ngram_dict_fn = getattr(lattice, get_ngram_dict_method_name)
-            ngram_dict, all_node_ngram_dict = get_ngram_dict_fn(all_node_length_dict)
+            ngram_dict, all_node_ngram_dict = get_ngram_dict_fn(all_node_length_dict, target_length=args.target_length, allowed_deviation = args.length_deviation)
 
 
             match_unweighted = {word: count / total_num_paths for word, (_, count) in ngram_dict.items()}
             match_weighted = {word: np.exp(lprob) for word, (lprob, _) in ngram_dict.items()}
 
-            mean_length = avg_len_unweighted if args.uniform else avg_len_weighted
-            expected_match = match_unweighted if (args.uniform or args.match_uniform) else match_weighted
+        mean_length = avg_len_unweighted if args.uniform else avg_len_weighted
+        if args.mean_override != -1:
+            mean_length = args.mean_override
 
-            ref_tokens = tokenizer(output.reference)['input_ids']
-            # print(avg_len_weighted, avg_len_unweighted, len(ref_tokens))
-
-        gold_length = len(output.reference.split(' '))
+        expected_match = match_unweighted if (args.uniform or args.match_uniform) else match_weighted
 
         # get top-k paths through lattice
         if exact:
@@ -288,6 +290,7 @@ def main():
         log_json.append({
             'file': file,
             'max_rouge': best_rouge,
+            'topk_hypos': topk_hypos,
             'max_path': best_path,
             'ref': output.reference,
             'mbr_hypo': best_detokenized,
@@ -309,7 +312,12 @@ def main():
             'average_rouge2': sum(r['rouge2'].fmeasure for r in oracle_topk_rouges) / len(oracle_topk_rouges),
             'average_rougeL': sum(r['rougeL'].fmeasure for r in oracle_topk_rouges) / len(oracle_topk_rouges),
         })
+        #wandb.log(log_json[-1])
+        lattice_topk_results.append({"all_50": topk_hypos, "gold": output.reference, "num_unique": len(set(topk_hypos))})
 
+
+    with jsonlines.open(args.outfile + "hypos", "w") as f:
+        f.write_all(lattice_topk_results)
     with open(args.outfile, 'w+') as f:
         json.dump(log_json, f)
 
@@ -342,17 +350,20 @@ def main():
 
     keys = list(log_json[0].keys())
     table_data = [[row[k] for k in keys] for row in log_json]
-    if use_wandb:
-        wandb.log({
-            'rouge1': sum(data['rouge1'] for data in log_json) / len(log_json),
-            'rouge2': sum(data['rouge2'] for data in log_json) / len(log_json),
-            'rougeL': sum(data['rougeL'] for data in log_json) / len(log_json),
-            'oracle_rouge1': sum(data['oracle_rouge1'] for data in log_json) / len(log_json),
-            'oracle_rouge2': sum(data['oracle_rouge2'] for data in log_json) / len(log_json),
-            'oracle_rougeL': sum(data['oracle_rougeL'] for data in log_json) / len(log_json),
-            'self_bleu': sum(data['self_bleu'] for data in log_json) / len(log_json),
-            'outputs': wandb.Table(data=table_data, columns=keys),
-        })
+        
+    wandb.log({
+        'rouge1': sum(data['rouge1'] for data in log_json) / len(log_json),
+        'rouge2': sum(data['rouge2'] for data in log_json) / len(log_json),
+        'rougeL': sum(data['rougeL'] for data in log_json) / len(log_json),
+        'oracle_rouge1': sum(data['oracle_rouge1'] for data in log_json) / len(log_json),
+        'oracle_rouge2': sum(data['oracle_rouge2'] for data in log_json) / len(log_json),
+        'oracle_rougeL': sum(data['oracle_rougeL'] for data in log_json) / len(log_json),
+        'self_bleu': sum(data['self_bleu'] for data in log_json) / len(log_json),
+        'outputs': wandb.Table(data=table_data, columns=keys),
+    })
+
+    wandb.log({'topk': lattice_topk_results})
+    print(lattice_topk_results)
 
 
 if __name__ == '__main__':

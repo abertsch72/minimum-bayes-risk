@@ -58,6 +58,9 @@ class Lattice(object):
                     length_dict[length] = (np.logaddexp(old_lprob, length_lprob), old_count + length_count)
                 else:
                     length_dict[length] = (length_lprob, length_count)
+        keys = list(length_dict.keys())
+        #print(keys)
+        #print([length_dict[k][1] for k in keys])
         return length_dict
 
     def get_length_dict_bfs(self):
@@ -90,7 +93,7 @@ class Lattice(object):
                     break
             else:
                 not_done_parents = {parent for parent in self.reverse_edges[candidate_node] if parent not in visited}
-                print(not_done_parents)
+                #print(not_done_parents)
                 import pdb; pdb.set_trace()
                 raise Exception("No node has all parents done, throwing exception.")
             if curr_node in visited:
@@ -169,12 +172,28 @@ class Lattice(object):
         '''
         path_count_dict = {}
         for node, length_data in all_node_length_dict.items():
+            #print(length_data)
             all_lprobs, total_count = [-float('inf')], 0
-            for lprob, c in length_data.values():
+            for length, (lprob, c) in length_data.items():
                 all_lprobs.append(lprob)
                 total_count += c
             path_count_dict[node] = (sps.logsumexp(all_lprobs), total_count)
         return path_count_dict
+
+
+    def _get_path_count_bounded_length(self, length_data, target_length, max_deviation):
+        '''
+        Returns dict mapping each node to 2-tuple containing
+        (total lprob of paths from sos token to that node,
+         # of paths from sos token to that node)
+        '''
+        all_lprobs, total_count = [-float('inf')], 0
+        for length, (lprob, c) in length_data.items():
+            if length <= target_length + max_deviation and length >= target_length - max_deviation:
+                all_lprobs.append(lprob)
+                total_count += c
+        return (sps.logsumexp(all_lprobs), total_count)
+    
 
     def _extract_word_dict(self, all_node_word_dict):
         word_dict = {}
@@ -184,7 +203,7 @@ class Lattice(object):
                 word_dict[word] = (np.logaddexp(old_lprob, word_lprob), old_count + word_count)
         return word_dict
 
-    def get_1gram_dict(self, all_node_length_dict):
+    def get_1gram_dict(self, all_node_length_dict, target_length=None, allowed_deviation=0):
         '''
         For each node v, for all words w, computes the total count & logprob 
         of all paths from SOS to v that contain w (a unigram)
@@ -200,17 +219,30 @@ class Lattice(object):
 
         all_node_word_dict = {node: {} for node in self.nodes}
 
-        visited = {self.sos}
-        def dfs_helper(node):
-            if node in visited:
+        visited = {self.sos: {}}
+        def dfs_helper(node, length_to_here=0):
+            if node == self.sos:
                 return all_node_word_dict[node]
-            visited.add(node)
+            elif target_length is not None:
+                if length_to_here >= target_length + allowed_deviation:
+                    return all_node_word_dict[node]
+                elif node in visited:
+                    # want to return if length to here is within deviation of visited length 
+                    if True in [(abs(length_to_here - visited_len) <= allowed_deviation) for visited_len in visited[node]]:
+                        return all_node_word_dict[node]
+                visited[node] = visited.get(node, []) + [length_to_here]
+            else:
+                if node in visited:
+                    return all_node_word_dict[node]
+                visited[node] = {}
 
             curr_word = self.nodes[node]['text']
             curr_word_dict = {} # word -> (total score, count)
             for parent_node, edge_lprob in self.reverse_edges[node].items():
-                parent_word_dict = dfs_helper(parent_node)
+                parent_word_dict = dfs_helper(parent_node, length_to_here=length_to_here+1)
                 for word, (parent_lprob, parent_count) in parent_word_dict.items():
+                    if parent_count == 0:
+                        continue
                     if word != curr_word:
                         added_lprob = parent_lprob + edge_lprob
                         if word in curr_word_dict:
@@ -222,8 +254,11 @@ class Lattice(object):
 
             # The number of paths that contain the current word is equal
             # to the number of paths that reach the current node.
-            curr_word_dict[curr_word] = path_count_dict[node]
-
+            if target_length is not None:
+                curr_word_dict[curr_word] = self._get_path_count_bounded_length(all_node_length_dict[node], target_length - (length_to_here + 1), allowed_deviation)
+            else:
+                curr_word_dict[curr_word] = path_count_dict[node]
+            
             all_node_word_dict[node] = curr_word_dict
             return curr_word_dict
 
@@ -233,7 +268,7 @@ class Lattice(object):
         word_dict = self._extract_word_dict(all_node_word_dict)
         return word_dict, all_node_word_dict
 
-    def get_1gram_dict_count_aware(self, all_node_length_dict):
+    def get_1gram_dict_count_aware(self, all_node_length_dict, target_length=None, allowed_deviation=0):
         '''
         Same as get_1gram_dict, but with count-aware adjustment
         to counts.
@@ -254,7 +289,7 @@ class Lattice(object):
         all_node_word_dict = {node: {} for node in self.nodes}
 
         visited = {self.sos}
-        def dfs_helper(node):
+        def dfs_helper(node, length_to_here=0):
             if node in visited:
                 return all_node_word_dict[node]
             visited.add(node)
@@ -263,9 +298,8 @@ class Lattice(object):
 
             curr_word_dict = {} # word -> (total score, count)
             for parent_node, edge_lprob in self.reverse_edges[node].items():
-                parent_word_dict = dfs_helper(parent_node)
+                parent_word_dict = dfs_helper(parent_node, length_to_here=length_to_here+1)
                 for word, (parent_lprob, parent_count) in parent_word_dict.items():
-                    # if word[0] != curr_word: # this is wrong but somehow works better???
                     added_lprob = parent_lprob + edge_lprob
                     if word in curr_word_dict:
                         old_lprob, old_count = curr_word_dict[word]
@@ -304,7 +338,7 @@ class Lattice(object):
         word_dict = self._extract_word_dict(all_node_word_dict)
         return word_dict, all_node_word_dict
 
-    def get_2gram_dict(self, all_node_length_dict):
+    def get_2gram_dict(self, all_node_length_dict, target_length=None, allowed_deviation=0):
         '''
         Same as get_1gram_dict, but with bigrams (i.e. (w, w') pairs) 
         instead of unigrams.
@@ -320,11 +354,22 @@ class Lattice(object):
 
         all_node_word_dict = {node: {} for node in self.nodes}
 
-        visited = {self.sos}
-        def dfs_helper(node):
-            if node in visited:
+        visited = {self.sos: {}}
+        def dfs_helper(node, length_to_here=0):
+            if node == self.sos:
                 return all_node_word_dict[node]
-            visited.add(node)
+            elif target_length is not None:
+                if length_to_here >= target_length + allowed_deviation:
+                    return all_node_word_dict[node]
+                elif node in visited:
+                    # want to return if length to here is within deviation of visited length 
+                    if True in [(abs(length_to_here - visited_len) <= allowed_deviation) for visited_len in visited[node]]:
+                        return all_node_word_dict[node]
+                visited[node] = visited.get(node, []) + [length_to_here]
+            else:
+                if node in visited:
+                    return all_node_word_dict[node]
+                visited[node] = {}
 
             curr_word = self.nodes[node]['text']
 
@@ -346,7 +391,10 @@ class Lattice(object):
                             curr_word_dict[bigram] = (added_lprob, parent_count)
                 
                 old_lprob, old_count = curr_word_dict.get(curr_bigram, (-float('inf'), 0))
-                parent_lprob, parent_count = path_count_dict[parent_node] 
+                if target_length is not None:
+                    parent_lprob, parent_count = self._get_path_count_bounded_length(all_node_length_dict[parent_node], target_length - (length_to_here + 1), allowed_deviation)
+                else:
+                    parent_lprob, parent_count = path_count_dict[parent_node] 
                 added_lprob = parent_lprob + edge_lprob
                 curr_word_dict[curr_bigram] = (np.logaddexp(old_lprob, added_lprob),
                                                old_count + parent_count)
@@ -360,7 +408,7 @@ class Lattice(object):
         word_dict = self._extract_word_dict(all_node_word_dict)
         return word_dict, all_node_word_dict
 
-    def get_2gram_dict_count_aware(self, all_node_length_dict):
+    def get_2gram_dict_count_aware(self, all_node_length_dict, target_length=None, allowed_deviation=0):
         '''
         Same as get_1gram_dict_count_aware but with bigrams instead of unigrams.
 
@@ -755,7 +803,7 @@ class Lattice(object):
                 return all_node_rouge_dict[node]
             visited.add(node)
             curr_word = self.nodes[node]['text']
-            curr_exp_match = exp_word_match[curr_word]
+            curr_exp_match = exp_word_match.get(curr_word, 0) #TODO: this feels risky
 
             curr_rouge_dict_indices = Counter() # length -> idx
             curr_rouge_dict = {}
@@ -813,7 +861,8 @@ class Lattice(object):
         d_length=float('inf'), 
         uniform=False,
         lattice_topk=1,
-        return_topk=-1
+        return_topk=-1, 
+        use_rouge=True
     ):
         '''
         Computes path that maximizes sum of local gains

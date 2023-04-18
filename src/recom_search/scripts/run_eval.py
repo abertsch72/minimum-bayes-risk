@@ -259,4 +259,5 @@ def run_model(args, tokenizer, model, dataset, dec_prefix, wt_dir):
 
 if __name__ == "__main__":
     # execute only if run as a script
-    run_model(args, tokenizer, model, dataset, dec_prefix, dict_io['data'])
+    dataset = setup_model()
+    run_model(args, tokenizer, model, data_set, dec_prefix, dict_io['data'])
