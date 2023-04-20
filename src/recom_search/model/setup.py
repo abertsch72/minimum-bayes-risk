@@ -50,9 +50,9 @@ def setup_model(task='sum', dataset='xsum', model_name='facebook/bart-large-xsum
     global tokenizer, model, data_set, dec_prefix
     device = torch.device(device_name)
     print(model_name)
-    config = AutoConfig.from_pretrained(model_name)
-    model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
-    tokenizer = AutoTokenizer.from_pretrained(model_name, padding=True, truncation=True, max_length=1024)
+    config = AutoConfig.from_pretrained(model_name, local_files_only=True)
+    model = AutoModelForSeq2SeqLM.from_pretrained(model_name, local_files_only=True)
+    tokenizer = AutoTokenizer.from_pretrained(model_name, padding=True, truncation=True, max_length=1024, local_files_only=True)
 
     if task == 'custom':
         # you need to store the input under the path_dataset folder
@@ -128,7 +128,7 @@ def setup_logger(name):
     now_time = datetime.datetime.now()
     logname = f"logs/{name}{str(now_time)[:16]}.txt"
     logger = logging.getLogger()
-    logger.setLevel(logging.DEBUG)
+    logger.setLevel(logging.WARNING)
 
     handler = logging.StreamHandler(sys.stdout)
     handler.setLevel(logging.INFO)
@@ -203,9 +203,9 @@ def process_arg():
     parser.add_argument('--outfile', type=str, default=None, 
                            help='file to save results to')
     mbr_group = parser.add_argument_group('mbr', 'mbr args')
-    mbr_group.add_argument('--lattice_metric', type=str, default='rouge1',
+    mbr_group.add_argument('--lattice_metric', type=str, default=None,
                            help='metric for MBR approximation in lattice',
-                           choices=['rouge1', 'rouge2', 'match1', 'match2'])
+                           choices=['rouge1', 'rouge2', 'match1', 'match2', 'exact1'])
     mbr_group.add_argument('--uniform', action='store_true', default=False,
                            help='use uniform scoring instead of weighted lattice scores')
     mbr_group.add_argument('--count_aware', action='store_true',
@@ -233,7 +233,7 @@ def process_arg():
     mbr_group.add_argument('--rerank_topk', type=int, default=-1,
                            help='number of hypotheses for second-stage MBR reranking.' + \
                                 'defaults to same value as lattice_topk')
-    mbr_group.add_argument('--rerank_rouge', type=str, default='2',
+    mbr_group.add_argument('--rerank', type=str, default='2',
                            help='ROUGE-n for top-k reranking')
     mbr_group.add_argument('--run_name', type=str, default='',
                            help='name for WANDB run')
@@ -241,7 +241,7 @@ def process_arg():
     global args
     global grouped_args
 
-    args = parser.parse_args()
+    args, _ = parser.parse_known_args()
     grouped_args = {}
     for group in parser._action_groups:
         group_dict={a.dest:getattr(args,a.dest,None) for a in group._group_actions}
