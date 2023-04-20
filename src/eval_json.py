@@ -1,4 +1,5 @@
 from rouge_score import rouge_scorer
+from recom_search.evaluation.eval_bench import self_bleu
 
 class Metrics:
     class Rouge:
@@ -93,7 +94,7 @@ class Metrics:
 
 
         self.most_freq_summ_rouge = []
-        self.selfbleu = []
+        self.metrics['selfbleu'].append(self_bleu(options))
         self.correlation = []
 
     def score_set(self, outputs):

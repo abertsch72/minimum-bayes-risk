@@ -1,3 +1,4 @@
+slurm/
 logs/
 wandb/
 tmp*
