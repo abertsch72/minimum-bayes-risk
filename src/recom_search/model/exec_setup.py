@@ -7,4 +7,5 @@ tokenizer = None
 model = None
 dataset = None
 dec_prefix = None
-# tokenizer, model, dataset, dec_prefix = setup_model(task=args.task,dataset= args.dataset, model_name=args.hf_model_name, device_name=args.device)
+if args.lattice_metric is None:
+    tokenizer, model, dataset, dec_prefix = setup_model(task=args.task,dataset= args.dataset, model_name=args.hf_model_name, device_name=args.device)
