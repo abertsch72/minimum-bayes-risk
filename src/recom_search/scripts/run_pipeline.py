@@ -11,7 +11,7 @@ from src.recom_search.evaluation.analysis import analyze_data, analyze_main
 from src.recom_search.model.util import render_config_name
 from src.recom_search.scripts.run_eval import run_model
 
-from src.recom_search.model.setup import tokenizer, model, data_set, args, dec_prefix, dict_io
+from src.recom_search.model.setup import tokenizer, model, data_set, args, dec_prefix, dict_io, setup_model
 import logging
 
 if __name__ == '__main__':
@@ -34,7 +34,9 @@ if __name__ == '__main__':
     config_name = render_config_name(
         args.task, args.dataset, args.model, args.beam_size, args.max_len, combined_dict)
     logging.info(f"Config name: {config_name}")
-    run_model(args, tokenizer, model, data_set, dec_prefix, dict_io['data'])
+    print(data_set)
+    tokenizer, model, dataset, dec_prefix = setup_model()
+    run_model(args, tokenizer, model, dataset, dec_prefix, dict_io['data'])
     del model
     logging.info(f"Done with making data. Start analyzing data.")
     analyze_main(config_name, dict_io['data'], dict_io['text'], dict_io['stat'], dict_io['html'])

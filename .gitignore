@@ -1,6 +1,28 @@
+# custom
+/mt-data
+/notebooks
+.html
+.txt
+*.csv
+*.pdf
+# *.json
+*.html
+*.txt
+*.log
+*.pkl
+
+# output/
+/output
+/topk-outputs
 logs/
 gen-*
 runconfigs/
+slurm/
+logs/
+wandb/
+tmp*
+mbr_result*
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -131,15 +153,3 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-# custom
-/mt-data
-/notebooks
-.html
-.txt
-*.csv
-*.pdf
-*.json
-*.html
-*.txt
-*.log
-*.pkl

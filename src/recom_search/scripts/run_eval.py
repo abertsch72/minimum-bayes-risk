@@ -81,7 +81,7 @@ def run_bfs(args, model, tokenizer, inp, dec_prefix, param_sim_function, config_
     else:
         comp_budget = args.max_len * args.beam_size
         cur_max_len = args.max_len
-    output = bfs(doc_input_ids=input_ids, model=model, tokenizer=tokenizer, param_sim_function=param_sim_function, dec_prefix=dec_prefix, avg_score=args.avg_score, max_len=cur_max_len, k_best=args.k_best, comp_budget=comp_budget, config_heu=None, config_search=config_search, temperature_sample = args.temperature_sample)
+    output = bfs(doc_input_ids=input_ids, model=model, tokenizer=tokenizer, dec_prefix=dec_prefix, avg_score=args.avg_score, max_len=cur_max_len, k_best=args.k_best, comp_budget=comp_budget, config_heu=None, config_search=config_search)
 
     mo = SearchModelOutput(ends=output)
     return mo
@@ -97,7 +97,7 @@ def run_bfs_recombination(args, model, tokenizer, inp, dec_prefix, param_sim_fun
         'heu_word': args.heu_word
     }
     input_ids = tokenizer(
-        inp, return_tensors="pt", truncation=True, max_length=model.config.max_position_embeddings).input_ids.to(args.device)
+        inp, return_tensors="pt", padding=True, truncation=True, max_length=1024).input_ids.to(args.device)
     if args.max_len == -1:
         cur_max_len = input_ids.squeeze().size()[0] * 2
         comp_budget = cur_max_len * args.beam_size
@@ -162,6 +162,8 @@ def run_baseline(args, model, inp, dec_prefix, adjust=True):
 
     # output should be a list of str
 
+# sanity checking that the right examples are used for every experiment
+# example_ids = ['38944626', '38841897', '36951809', '37329266', '38972281', '34688872', '32083717', '26237638', '32319927', '37439513', '34276797', '37685083', '37480369', '28359094', '37328868', '36414580', '40134723', '36538967', '18173273', '37584589', '36918140', '35837959', '36518750', '36033395', '38722428', '35919641', '40849171', '39134538', '28872944', '29507419', '30275513', '35998891', '40141033', '40470133', '36784182', '35899243', '32318906', '38844702', '34784906', '35027395', '38897462', '38704934', '39640064', '36986643', '40761453', '34589891', '32242131', '30792462', '31370822', '35994279', '37134709', '40908381', '28205563', '35625097', '39801988', '36588482', '37472975', '38105023', '26780897', '26393852', '36598609', '36308067', '39072865', '33810603', '33849042', '30759868', '38721046', '32196037', '35569627', '40594126', '34709664', '38838606', '22152699', '33243677', '25518137', '24209153', '39005107', '33359978', '35953521', '34051870', '31067802', '38211788', '40962385', '32860648', '35602332', '34698579', '30250624', '30704751', '39254234', '39789892', '36397500', '29026398', '37662690', '33594654', '19533038', '17745366', '40947448', '36678976', '31030136', '32963741', '34744153']
 
 def run_model(args, tokenizer, model, dataset, dec_prefix, wt_dir):
 
@@ -185,6 +187,8 @@ def run_model(args, tokenizer, model, dataset, dec_prefix, wt_dir):
             doc_id = idx
         elif args.dataset == 'cnndm':
             document = example['article']
+            sents = document.split('\n')
+            inp = "\n".join(sents[:10])[:5000]
             doc_id = example['id']
             ref_sum = example['highlights']
             sents = document.split('\n')
@@ -261,4 +265,5 @@ def run_model(args, tokenizer, model, dataset, dec_prefix, wt_dir):
 
 if __name__ == "__main__":
     # execute only if run as a script
-    run_model(args, tokenizer, model, dataset, dec_prefix, dict_io['data'])
+    dataset = setup_model()
+    run_model(args, tokenizer, model, data_set, dec_prefix, dict_io['data'])

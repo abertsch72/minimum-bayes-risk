@@ -1,4 +1,7 @@
 [core]
-    remote = drivefolder
-['remote "drivefolder"']
+    remote = drive
+['remote "drive"']
     url = gdrive://1DZHfXBQe3RyO6crvw8w-OqwSkEZvtGOx
+    gdrive_acknowledge_abuse = true
+    gdrive_user_credentials_file = /home/abertsch/.cache/pydrive2fs/710796635688-iivsgbgsb6uv1fap6635dhvuei09o66c.apps.googleusercontent.com/default.json
+    gdrive_use_service_account = true

@@ -52,7 +52,7 @@ def setup_model(task='sum', dataset='xsum', model_name='facebook/bart-large-xsum
     print(model_name)
     config = AutoConfig.from_pretrained(model_name)
     model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    tokenizer = AutoTokenizer.from_pretrained(model_name, padding=True, truncation=True, max_length=1024)
 
     if task == 'custom':
         # you need to store the input under the path_dataset folder
@@ -67,8 +67,8 @@ def setup_model(task='sum', dataset='xsum', model_name='facebook/bart-large-xsum
         if dataset == 'xsum':
             dataset = load_dataset("xsum", split='validation')
         elif dataset == 'cnndm':
-            #raise NotImplementedError("not supported")
-            dataset = load_dataset("cnn_dailymail", '3.0.0', split='validation')
+            # raise NotImplementedError("not supported")
+            dataset = load_dataset("ccdv/cnn_dailymail", '3.0.0', split='validation')
             print("CNNDM mean token in ref 56")
         dec_prefix = [tokenizer.eos_token_id]
     elif task == 'mt1n':
@@ -146,7 +146,7 @@ def setup_logger(name):
 
 def process_arg():
     parser = argparse.ArgumentParser()
-    parser.add_argument('-device', type=str, default='cuda:2', help='name of device, eg. cuda:0 or cpu')
+    parser.add_argument('-device', type=str, default='cpu', help='name of device, eg. cuda:0 or cpu')
     parser.add_argument("-model", type=str, choices=[
                         'dbs', 'bs', 'greedy', 'topp', 'temp', 'bs_recom', 'sample_recom', 'bfs','bfs_recom'], default='bs')
     parser.add_argument('-beam_size', type=int, default=15)
@@ -201,7 +201,54 @@ def process_arg():
     # end of depricated
     parser.add_argument('-merge', type=str, default='zip',
                         choices=['zip', 'rcb','none'])
-    global args 
+
+    # Lattice MBR arguments
+    parser.add_argument('--outfile', type=str, default=None, 
+                           help='file to save results to')
+    mbr_group = parser.add_argument_group('mbr', 'mbr args')
+    mbr_group.add_argument('--lattice_metric', type=str, default='rouge1',
+                           help='metric for MBR approximation in lattice',
+                           choices=['rouge1', 'rouge2', 'match1', 'match2'])
+    mbr_group.add_argument('--uniform', action='store_true', default=False,
+                           help='use uniform scoring instead of weighted lattice scores')
+    mbr_group.add_argument('--count_aware', action='store_true',
+                           help='use count-aware ROUGE approximation')
+    mbr_group.add_argument('--length_alpha', type=float, default=0.0,
+                           help='length smoothing for mean length calculation, ' + \
+                                'i.e. optionally divide \hat{p}(|h| = L) by L**alpha')
+    mbr_group.add_argument('--match_uniform', action='store_true', default=False,
+                           help='use uniform scoring for expected match calculation only')
+    mbr_group.add_argument('--d_length', type=int, default=float('inf'),
+                           help='min/max length deviation from mean')
+
+    mbr_group.add_argument('--mean_override', type=int, default=-1,
+                           help='value to override the mean with (-1 means use the actual mean)')
+
+    mbr_group.add_argument('--target_length', type=int, default=None,
+                           help='length to restrict evidence to (exact)')
+
+    mbr_group.add_argument('--length_deviation', type=int, default=0,
+                           help='allowed deviation from goal evidence set length)')
+
+    # Arguments for second stage MBR re-ranking
+    mbr_group.add_argument('--lattice_topk', type=int, default=1,
+                           help='number of top gain hypotheses to track in lattice')
+    mbr_group.add_argument('--rerank_topk', type=int, default=-1,
+                           help='number of hypotheses for second-stage MBR reranking.' + \
+                                'defaults to same value as lattice_topk')
+    mbr_group.add_argument('--rerank_rouge', type=str, default='2',
+                           help='ROUGE-n for top-k reranking')
+    mbr_group.add_argument('--run_name', type=str, default='',
+                           help='name for WANDB run')
+
+    global args
+    global grouped_args
+
     args = parser.parse_args()
-    return args
+    grouped_args = {}
+    for group in parser._action_groups:
+        group_dict={a.dest:getattr(args,a.dest,None) for a in group._group_actions}
+        grouped_args[group.title]=argparse.Namespace(**group_dict)
+
+    return args, grouped_args
 
