@@ -1,14 +1,12 @@
 from rouge_score import rouge_scorer
 from recom_search.evaluation.eval_bench import self_bleu
-import datasets
 
 class Metrics:
     class Rouge:
-        def __init__(self, r1=0, r2=0, rL=0, B=0):
+        def __init__(self, r1=0, r2=0, rL=0):
             self.r1 = r1
             self.r2 = r2
             self.rL = rL
-            #self.B = B
         def format(self, num):
             return str(round(100 * num, 2))
         def __str__(self):
@@ -27,10 +25,10 @@ class Metrics:
             if len(self.seq) == 0:
                 return Metrics.Rouge()
 
-            r1 = round(100 * (sum([item.r1 for item in self.seq]) / len(self.seq)), 2)
-            r2 = round(100 * (sum([item.r2 for item in self.seq]) / len(self.seq)), 2)
-            rL = round(100 * (sum([item.rL for item in self.seq]) / len(self.seq)), 2)
-            #B =  round(100 * (sum([item.B  for item in self.seq]) / len(self.seq)), 2)
+            r1 = sum([item.r1 for item in self.seq]) / len(self.seq)
+            r2 = sum([item.r2 for item in self.seq]) / len(self.seq)
+            rL = sum([item.rL for item in self.seq]) / len(self.seq)
+
             return Metrics.Rouge(r1, r2, rL)
         
         def __len__(self):
@@ -39,7 +37,7 @@ class Metrics:
     def __init__(self):
         self.rerank_metrics = ['rouge1', 'rouge2', 'rougeL']
         self.scorer = rouge_scorer.RougeScorer(self.rerank_metrics)
-        #self.bertscorer = datasets.load_metric("bertscore")
+
         self.metrics = {"unique_summaries": [], "top1_rouge": self.RougeList(), "bottom1_rouge": self.RougeList(), "selfbleu": [], "avg_score":  self.RougeList(), "correlation": []}
 
 
@@ -72,23 +70,17 @@ class Metrics:
         all_scores = []
         weighted_scores = {}
         geomeans = []
-        #bertscores = []
         for opt in unique:
             score = self.scorer.score(gold, opt)
-            #bertscores.append(self.bertscorer.compute(predictions=[opt], references=[gold], lang='en')['f1'][0])
-
             geomeans.append(self.geomean(score))
             all_scores.append([score[m].fmeasure for m in self.rerank_metrics])
 
             for metric in self.rerank_metrics:
                 weighted_scores[metric] = weighted_scores.get(metric, 0) + score[metric].fmeasure * options.count(opt)
 
-            #weighted_scores['bertscore'] = weighted_scores.get('bertscore', 0) + bertscores[-1] * options.count(opt)
 
-        maxsc = geomeans.index(max(geomeans))
-        minsc = geomeans.index(min(geomeans))
-        max_score = all_scores[maxsc]
-        min_score = all_scores[minsc]
+        max_score = all_scores[geomeans.index(max(geomeans))]
+        min_score = all_scores[geomeans.index(min(geomeans))]
 
         self.metrics['unique_summaries'].append(item['num_unique'])
         self.metrics['top1_rouge'].append(self.Rouge(*max_score))
@@ -97,12 +89,12 @@ class Metrics:
         all_r1 = weighted_scores['rouge1']/len(options)
         all_r2 = weighted_scores['rouge2']/len(options)
         all_rL = weighted_scores['rougeL']/len(options)
-        #all_B = weighted_scores['bertscore']/len(options)
+
         self.metrics['avg_score'].append(self.Rouge(all_r1, all_r2, all_rL))
 
-        #self.output()
+
         self.most_freq_summ_rouge = []
-        #self.metrics['selfbleu'].append(self_bleu(options))
+        self.metrics['selfbleu'].append(self_bleu(options))
         self.correlation = []
 
     def score_set(self, outputs):
@@ -121,4 +113,5 @@ with jsonlines.open(file) as f:
 
 metric_tracker.score_set(lines)
 metric_tracker.output()
+
 

@@ -97,11 +97,7 @@ def main():
     )
 
     # Results using best-first search with recombination + zip
-    results_dir = "output/data/250-zip-startat3k/"
-
-    #"../lattice-gen/output/cnndm-zip-temp/sum_cnndm_bfs_recom_16_70_False_0.4_True_False_4_5_zip_0.75_0.0_0.9/" #"../lattice-gen/output/cnndm-rcb/sum_cnndm_bfs_recom_16_70_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9/" #"output/data/cnndm-zip/sum_cnndm_bfs_recom_16_70_False_0.4_True_False_4_5_zip_0.75_0.0_0.9" #"output/data/cnndm-rcb/sum_cnndm_bfs_recom_16_70_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9/" 
-
-    #"../lattice-gen/output/cnndm-zip/sum_cnndm_bfs_recom_16_70_False_0.4_True_False_4_5_zip_0.75_0.0_0.9/" #"../lattice-gen/output/cnndm-rcb/sum_cnndm_bfs_recom_16_70_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9/" #"output/data/cnndm-zip/sum_cnndm_bfs_recom_16_70_False_0.4_True_False_4_5_zip_0.75_0.0_0.9" #"output/data/cnndm-rcb/sum_cnndm_bfs_recom_16_70_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9/" 
+    results_dir = "output/data/250-zip-startat3k/" #"output/data/zip100" #"../lattice-gen/output/ziptune/" #"output/data/zip100" #sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_zip_0.75_0.0_0.9"
     #results_dir = "output/data/sum_xsum_bfs_recom_16_35_False_0.4_True_False_4_5_rcb_0.75_0.0_0.9"
     result_files = os.listdir(results_dir)
 
@@ -234,7 +230,7 @@ def main():
         lattice_topk_results.append({"all_50": topk_hypos, "gold": output.reference, "num_unique": len(set(topk_hypos))})
 
 
-    with jsonlines.open(args.run_name + ".jsonl", "w") as f:
+    with jsonlines.open(args.outfile + "hypos", "w") as f:
         f.write_all(lattice_topk_results)
     with open(args.outfile, 'w+') as f:
         json.dump(log_json, f)
@@ -271,3 +267,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+
