@@ -1,4 +1,4 @@
-from args import get_parser
+from mbr_pipeline.args import get_parser
 from rouge_score import rouge_scorer
 import sacrebleu
 from scorers import (

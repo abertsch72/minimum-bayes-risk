@@ -1,5 +1,5 @@
 import os
-from args import get_parser
+from mbr_pipeline.args import get_parser
 from lattice import Lattice
 import numpy as np
 from transformers import AutoTokenizer

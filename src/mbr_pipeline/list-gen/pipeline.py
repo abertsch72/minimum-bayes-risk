@@ -1,6 +1,6 @@
 import os
 import sys
-from args import get_parser, get_args
+from mbr_pipeline.args import get_parser, get_args
 
 assert __name__ == '__main__' # file should be run as main script
 
