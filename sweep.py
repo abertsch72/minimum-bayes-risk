@@ -5,13 +5,13 @@ import subprocess
 import itertools
 
 choices = {
-    'lattice_metric': ['match2', 'rouge2'],
+    'lattice_metric': ['match1'],
     'mean_override': [None, 20, 25, 30, 35],
     'd_length': [None, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
     'count_aware': [False],
-    'match_uniform': [True],
-    #'target_length': list(range(7,30)),
-    #'deviation': list(range(0,10)),
+    'match_uniform': [True, False],
+    'target_length': list(range(7,30)),
+    'deviation': list(range(0,10)),
 }
 # uniform
 # length_alpha
