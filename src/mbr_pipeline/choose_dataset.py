@@ -29,7 +29,7 @@ def get_input():
 
 
 def get_dataset(args: DatasetArgs):
-    full_data = load_dataset(*args.dataset.value, split=args.split)
+    full_data = load_dataset(*args.dataset.value, split=args.split.value)
     if args.end_index != -1:
         return full_data.select(range(args.start_index, args.end_index))
     elif args.start_index != 0:
