@@ -1,3 +1,4 @@
+import json
 from transformers import HfArgumentParser
 from typing import Optional, Literal
 from dataclasses import dataclass, field
@@ -14,6 +15,10 @@ class Args:
     run_name: Optional[str] = field(default=None)
     seed: Optional[int] = field(default=None)
     no_tqdm: Optional[bool] = field(default=False)
+    config: Optional[str] = field(
+        default=None,
+        metadata={"help": "File containing command line flags in json format."}
+    )
 
 
 @dataclass
@@ -37,8 +42,11 @@ class BeamSearchArgs:
 
 
 @dataclass
-class NucleusSamplingArgs:
-    pass
+class ModelSamplingArgs:
+    """
+    Arguments for all model-based sampling baselines
+    """
+    
 
 
 @dataclass
@@ -50,21 +58,45 @@ class LatticeMBRArgs:
         default='',
         metadata={'help': 'directory where lattices are stored'}
     )
-    lattice_metric: Literal['rouge1', 'rouge2', 'match1', 
-                            'match2', 'exact_rouge1'] = field(
-        default="rouge1"
+    lattice_metric: str = field(
+        default="rouge1",
+        metadata={'help': "options are 'rouge1', 'rouge2', 'match1', 'match2', 'exact_rouge1'"}
+    )
+    uniform_length: Optional[bool] = field(
+        default=False,
+        metadata={'help': 'use uniform scoring for mean length calculation (i.e. count-based)'}
+    )
+    length_temp: Optional[float] = field(
+        default=1.0,
+        metadata={"help": "temperature when calculating non-uniform mean length"}
     )
     uniform_match: Optional[bool] = field(
         default=False,
-        metadata={'help': 'use uniform scoring for expected match calculation only'}
+        metadata={'help': 'use uniform scoring for expected match calculation'}
     )
-    candidate_length_deviation: Optional[int] = field(
-        default=float('inf'),
-        metadata={"help": "Min/max deviation of candidate set length from mean"},
+    match_temp: Optional[float] = field(
+        default=1.0,
+        metadata={"help": "temperature when calculating non-uniform expected match"}
+    )
+    target_evidence_length: Optional[int] = field(
+        default=-1,
+        metadata={"help": "Target length for evidence set. -1 denotes no target length, " +
+                          "0 denotes target length = mean length, and anything >0 will " +
+                          "be used directly as target length"}
     )
     evidence_length_deviation: Optional[int] = field(
         default=float('inf'),
-        metadata={"help": "Min/max deviation of evidence set length from mean"},
+        metadata={"help": "Min/max deviation of evidence set length from target length"},
+    )
+    target_candidate_length: Optional[int] = field(
+        default=-1,
+        metadata={"help": "Target length for candidate set. -1 denotes no target length, " +
+                          "0 denotes target length = mean length, and anything >0 will " +
+                          "be used directly as target length"}
+    )
+    candidate_length_deviation: Optional[int] = field(
+        default=float('inf'),
+        metadata={"help": "Min/max deviation of candidate set length from target length"},
     )
     mean_override: Optional[int] = field(
         default=-1,
@@ -73,6 +105,14 @@ class LatticeMBRArgs:
     lattice_score_temp: Optional[float] = field(
         default=1.0,
         metadata={'help': 'temperature on lattice edge probabilities'},
+    )
+    count_aware: Optional[bool] = field(
+        default=False,
+        metadata={"help": "use count awareness in rouge(-1) approximation"}
+    )
+    k_per_node: Optional[int] = field(
+        default=0,
+        metadata={"help": "number of candidates to track per node in the lattice"}
     )
 
 
@@ -112,7 +152,14 @@ class ListRerankArgs:
         # Literal['rouge1', 'rouge2', 'rouge3', 'rouge4', 'rouge5', 'rouge6', 
         #         'bertscore', 'bartscore']
     ] = field(default=None)
-    rerank_temp: Optional[float] = field(default=float('inf'))
+    rerank_temp: Optional[float] = field(
+        default=float('inf')
+    )
+    rerank_geo_mean: Optional[bool] = field(
+        default=False,
+        metadata={"help": "use geo mean of rouges up to specified order"}
+    )
+
 
 
 @dataclass
@@ -121,30 +168,41 @@ class EvalArgs:
     Arguments pertaining to topk-list evaluation
     """
     eval_metrics: str = field(
-        default='rouge1,rouge2,rougeL',
+        default='rouge1,rouge2,rougeL,chrf',
         metadata={"help": "comma-separated list of metrics to evaluate hypos on"}
     )
     outfile: Optional[str] = field(default=None)
 
 
 def get_parser(
-    beamsearch=False, 
+    modelsamp=False, 
     latticembr=False, 
     latticesamp=False, 
-    nuclsamp=False,
+    rerank=False,
 ):
     dataclass_types = [Args]
-    if any([beamsearch, latticembr, latticesamp, nuclsamp]):
+    if any([latticembr, latticesamp, modelsamp]):
         dataclass_types.append(ListGenArgs)
+
         for should_add, data_cls in zip(
-            [beamsearch,     latticembr,     latticesamp,         nuclsamp],
-            [BeamSearchArgs, LatticeMBRArgs, LatticeSamplingArgs, NucleusSamplingArgs]
+            [latticembr,     latticesamp,         modelsamp],
+            [LatticeMBRArgs, LatticeSamplingArgs, ModelSamplingArgs]
         ):
             if should_add:
                 dataclass_types.append(data_cls)
-    else:
+    elif rerank:
         dataclass_types.append(ListRerankArgs)
+    else:
         dataclass_types.append(EvalArgs)
 
     parser = HfArgumentParser(dataclass_types)
     return parser
+
+def get_args(parser):
+    args, *_ = parser.parse_known_args()
+    if args.config is not None:
+        with open(args.config) as f:
+            args_from_config = json.load(f)
+        for k, v in args_from_config.items():
+            setattr(args, k, v)
+    return args

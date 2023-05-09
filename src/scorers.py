@@ -3,6 +3,7 @@ from functools import lru_cache
 from collections import defaultdict
 from typing import Dict, List
 from numbers import Number
+import random
 
 import torch
 import datasets
@@ -11,6 +12,7 @@ try:
 except:
     print("Unable to import bart_score.")
 from rouge_score import rouge_scorer
+from sacrebleu import sentence_chrf
 import numpy as np
 
 
@@ -66,9 +68,10 @@ def rescore_rouge(topk_hypos, probs, rouge, eps=1e-4):
     
     k = len(topk_hypos)
     sim_matrix = np.ones((k, k))
+    tokens = [rouge._tokenizer.tokenize(h) for h in topk_hypos]
     for i in range(k):
         for j in range(i+1, k):
-            pair_scores = rouge.score(topk_hypos[i], topk_hypos[j])
+            pair_scores = rouge.score(tokens[i], tokens[j], pretokenized=True)
             geo_mean = 1.0
             for score in pair_scores.values():
                 geo_mean *= (score.fmeasure + eps)
@@ -83,34 +86,43 @@ import statistics
 from sacrebleu.metrics import BLEU
 bleu_scorer = BLEU(effective_order=True)
 
-def self_bleu(inp_group: List[str]):
+def self_bleu(inp_group: List[str], num_refs=5):
     # tok_inputs = tokenize_sentences(inp_group)
+    assert len(inp_group) > num_refs
     bleu_scores = []
     for idx, inp in enumerate(inp_group):
-        bleu_score = bleu_scorer.sentence_score(
-            inp, [x for jdx, x in enumerate(inp_group) if jdx != idx])
+        ref_indices = [idx]
+        while idx in ref_indices:
+            ref_indices = random.sample(range(len(inp_group)), k=num_refs)
+        refs = [inp_group[i] for i in ref_indices]
+        bleu_score = bleu_scorer.sentence_score(inp, refs)
         bleu_scores.append(bleu_score.score)
     return statistics.mean(bleu_scores)
 
 
 class Score:
-    def __init__(self, score_dict):
+    def __init__(self, score_dict, pct=True):
         self.score_dict = score_dict
+        self.is_pct = pct
     
     def __str__(self):
         sorted_keys = sorted(self.score_dict)
-        return " | ".join(f"{100 * self.score_dict[k]:.2f}".rjust(6) for k in sorted_keys)
+        if self.is_pct:
+            fmt_fn = lambda n: f"{100 * n:.2f}".rjust(6)
+        else:
+            fmt_fn = lambda n: f"{n:.3f}".rjust(6)
+        return " | ".join(fmt_fn(self.score_dict[k]) for k in sorted_keys)
 
     def __add__(self, other):
         assert isinstance(other, Score)
         assert self.score_dict.keys() == other.score_dict.keys()
         new_score_dict = {k: self.score_dict[k] + other.score_dict[k] for k in self.score_dict}
-        return Score(new_score_dict)
+        return Score(new_score_dict, self.is_pct and other.is_pct)
 
     def __truediv__(self, num):
         assert isinstance(num, Number)
         new_score_dict = {k: v / num for k, v in self.score_dict.items()}
-        return Score(new_score_dict)
+        return Score(new_score_dict, self.is_pct)
 
     def geomean(self):
         eps = 1e-4
@@ -139,6 +151,10 @@ class Scorer(object):
         if 'bartscore' in metrics:
             self.bartscore = get_bartscore()
 
+        self.chrf_scorer = None
+        if 'chrf' in metrics:
+            self.chrf_scorer = lambda hypo, ref: sentence_chrf(hypo, [ref]).score
+
     def score(self, gold, hypos) -> List[Score]:
         scores = [{} for _ in range(len(hypos))]
         if self.rouge_scorer is not None:
@@ -160,5 +176,9 @@ class Scorer(object):
             )
             for i in range(len(hypos)):
                 scores[i]['bartscore'] = bart_scores[i]
+        if self.chrf_scorer is not None:
+            for i, hypo in enumerate(hypos):
+                chrf = self.chrf_scorer(hypo, gold) / 100.0
+                scores[i]['chrf'] = chrf
         
         return [Score(s) for s in scores]
