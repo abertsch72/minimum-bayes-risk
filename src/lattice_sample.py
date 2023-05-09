@@ -7,6 +7,7 @@ import random
 from scipy.special import softmax, logsumexp
 import jsonlines
 from tqdm import tqdm
+import wandb
 from utils import set_seed
 
 
@@ -65,10 +66,17 @@ def run_lattice_sampling(args):
             no_repeats=args.no_repeats,
             temp=args.lattice_score_temp
         )
+        hypos = [v[0] for v in topk_hypos]
+        lprobs = [v[1] for v in topk_hypos]
+        # sort from greatest to least
+        sorted_order = np.argsort(lprobs)[::-1]
+        hypos = [hypos[i] for i in sorted_order]
+        lprobs = [lprobs[i] for i in sorted_order]
         all_hypos.append({
-            "hypos": [v[0] for v in topk_hypos],
-            "lprobs": [v[1] for v in topk_hypos], # LOG probabilities
-            "gold": output.reference
+            "hypos": hypos,
+            "lprobs": lprobs, # LOG probabilities
+            "gold": output.reference,
+            "doc_id": output.doc_id
         })
 
     with jsonlines.open(args.outfile, "w") as f:
@@ -82,11 +90,8 @@ if __name__ == "__main__":
     parser = get_parser(latticesamp=True)
     args = parser.parse_args()
     set_seed(args.seed)
-    global wandb # slightly ugly way to get wandb into scope
     if args.wandb:
-        import wandb as wandb_
-        wandb = wandb_
-        _, ls_args = parser.parse_args_into_dataclasses()
+        *_, ls_args = parser.parse_args_into_dataclasses()
         wandb.init(project='lattice-decoding', entity='gormleylab', 
                    group=args.wandb_group, config=vars(ls_args))
         if args.run_name:

@@ -24,6 +24,15 @@ class Lattice(object):
             assert len(self.edges[eos]) == 0
         self.eos_set = set(self.eos_list)
 
+    def apply_temperature(self, temp):
+        '''
+        Scale lattice edge lprobs by temp
+        '''
+        for src in self.edges:
+            for tgt in self.edges[src]:
+                self.edges[src][tgt] /= temp
+                self.reverse_edges[tgt][src] /= temp
+
     def _find_start_end(self, nodes, edges):
         degree = {}
         out_degree = {}
@@ -121,7 +130,7 @@ class Lattice(object):
         length_dict = self._extract_length_dict(node_length_dict)
         return length_dict, node_length_dict
 
-    def get_length_dict_reverse_dfs(self):
+    def get_length_dict(self):
         '''
         For each node v, for all path lengths L, computes the 
         total count & logprob of all paths from SOS to v of length L
@@ -224,22 +233,11 @@ class Lattice(object):
 
         all_node_word_dict = {node: {} for node in self.nodes}
 
-        visited = {self.sos: {}}
+        visited = {self.sos}
         def dfs_helper(node, length_to_here=0):
-            if node == self.sos:
+            if node in visited:
                 return all_node_word_dict[node]
-            elif target_length is not None:
-                if length_to_here >= target_length + allowed_deviation:
-                    return all_node_word_dict[node]
-                elif node in visited:
-                    # want to return if length to here is within deviation of visited length 
-                    if True in [(abs(length_to_here - visited_len) <= allowed_deviation) for visited_len in visited[node]]:
-                        return all_node_word_dict[node]
-                visited[node] = visited.get(node, []) + [length_to_here]
-            else:
-                if node in visited:
-                    return all_node_word_dict[node]
-                visited[node] = {}
+            visited.add(node)
 
             curr_word = self.nodes[node]['text']
             curr_word_dict = {} # word -> (total score, count)
@@ -259,10 +257,7 @@ class Lattice(object):
 
             # The number of paths that contain the current word is equal
             # to the number of paths that reach the current node.
-            if target_length is not None:
-                curr_word_dict[curr_word] = self._get_path_count_bounded_length(all_node_length_dict[node], target_length - (length_to_here + 1), allowed_deviation)
-            else:
-                curr_word_dict[curr_word] = path_count_dict[node]
+            curr_word_dict[curr_word] = path_count_dict[node]
             
             all_node_word_dict[node] = curr_word_dict
             return curr_word_dict
@@ -413,62 +408,8 @@ class Lattice(object):
         word_dict = self._extract_word_dict(all_node_word_dict)
         return word_dict, all_node_word_dict
 
-    def get_2gram_dict_count_aware(self, all_node_length_dict, target_length=None, allowed_deviation=0):
-        '''
-        Same as get_1gram_dict_count_aware but with bigrams instead of unigrams.
 
-        all_node_word_dict = {
-            node: {
-                bigram: (total probability mass of paths from sos to node that contain bigram,
-                         number of paths from sos to node that contain bigram)
-            }
-        }
-        '''
-        raise NotImplementedError
-        path_count_dict = self._get_node_path_count_dict(all_node_length_dict)
-
-        all_node_word_dict = {node: {} for node in self.nodes}
-
-        visited = {self.sos}
-        def dfs_helper(node):
-            if node in visited:
-                return all_node_word_dict[node]
-            visited.add(node)
-
-            curr_word = self.nodes[node]['text']
-
-            curr_word_dict = {} # word -> (total score, count)
-            for parent_node, edge_lprob in self.reverse_edges[node].items():
-                parent_word_dict = dfs_helper(parent_node)
-                
-                parent_word = self.nodes[parent_node]['text']
-                curr_bigram = (parent_word, curr_word)
-
-                for bigram, (parent_lprob, parent_count) in parent_word_dict.items():
-                    added_lprob = parent_lprob + edge_lprob
-                    if bigram in curr_word_dict:
-                        old_lprob, old_count = curr_word_dict[bigram]
-                        curr_word_dict[bigram] = (np.logaddexp(old_lprob, added_lprob),
-                                                    old_count + parent_count)
-                    else:
-                        curr_word_dict[bigram] = (added_lprob, parent_count)
-                
-                old_lprob, old_count = curr_word_dict.get(curr_bigram, (-float('inf'), 0))
-                parent_lprob, parent_count = path_count_dict[parent_node] 
-                added_lprob = parent_lprob + edge_lprob
-                curr_word_dict[curr_bigram] = (np.logaddexp(old_lprob, added_lprob),
-                                               old_count + parent_count)
-
-            all_node_word_dict[node] = curr_word_dict
-            return curr_word_dict
-
-        for eos in self.eos_list:
-            dfs_helper(eos)
-        
-        word_dict = self._extract_word_dict(all_node_word_dict)
-        return word_dict, all_node_word_dict
-
-    def get_1gram_dict_by_length(self, all_node_length_dict, max_length=float('inf')):
+    def get_1gram_dict_by_length(self, all_node_length_dict, target_length=0.0, allowed_deviation=float('inf')):
         '''
         all_node_word_dict = {
             node: {
@@ -505,7 +446,7 @@ class Lattice(object):
                     curr_length_dict = curr_word_dict_all_lengths.get(parent_word, {})
                     for parent_length, (parent_lprob, parent_count) in parent_length_dict.items():
                         curr_length = parent_length + 1
-                        if curr_length > max_length:
+                        if curr_length > target_length + allowed_deviation:
                             continue
                         added_lprob = parent_lprob + edge_lprob
                         if curr_length in curr_length_dict:
@@ -528,14 +469,18 @@ class Lattice(object):
         for eos in self.eos_list:
             dfs_helper(eos)
 
+        min_length, max_length = target_length - allowed_deviation, target_length + allowed_deviation
+
         word_dict_by_length = {}
         for eos in self.eos_list: # sum reduction over nodes
             for eos_word, eos_length_dict in all_node_word_dict[eos].items():
                 agg_length_dict = word_dict_by_length.get(eos_word, {})
                 for eos_length, (eos_word_lprob, eos_word_count) in eos_length_dict.items():
+                    if not (min_length <= eos_length <= max_length):
+                        continue
                     # old_lprob, old_count = agg_length_dict.get(eos_length, (-float('inf'), 0))
-                    old_prob, old_count = agg_length_dict.get(eos_length, (0.0, 0))
-                    agg_length_dict[eos_length] = (old_prob + np.exp(eos_word_lprob), 
+                    old_prob, old_count = agg_length_dict.get(eos_length, (-float('inf'), 0))
+                    agg_length_dict[eos_length] = (np.logaddexp(old_prob, eos_word_lprob), 
                                                    old_count + eos_word_count)
                 word_dict_by_length[eos_word] = agg_length_dict
             
@@ -546,8 +491,10 @@ class Lattice(object):
         self, 
         mean_length,
         match_by_length: Dict[str, Dict[int, Tuple[float, int]]], 
+        target_length,
+        d_length=float('inf'),
         lattice_topk=1,
-        return_topk=-1
+        return_topk=-1,
     ):
         '''
         all_node_rouge_dict = {
@@ -571,7 +518,7 @@ class Lattice(object):
         '''
         all_node_rouge_dict = {node: {} for node in self.nodes}
         all_node_rouge_dict[self.sos] = {0: heapdict({0: (0, None, 0)})}
-        
+
         visited = {self.sos}
         def dfs_helper(node):
             if node in visited:
@@ -589,10 +536,12 @@ class Lattice(object):
                         parent_score = parent_entry[0]
 
                         new_length = parent_length + 1
+                        if new_length > target_length + d_length:
+                            continue
                         # new_match = parent_match + curr_exp_match
                         # new_rouge = 2 * new_match / (new_length + mean_length)
                         gain = 0.0
-                        for evidence_length, (prob, _) in curr_match_length.items():
+                        for evidence_length, prob in curr_match_length.items():
                             gain += prob / (evidence_length + new_length)
                         new_score = parent_score + gain
 
@@ -619,7 +568,8 @@ class Lattice(object):
             return_topk = lattice_topk
         topk_paths, topk_rouges = self._extract_topk_gain_paths(
             all_node_rouge_dict,
-            max_length=mean_length,
+            max_length=target_length + d_length,
+            min_length=target_length - d_length,
             topk=return_topk
         )
         return topk_paths, topk_rouges, all_node_rouge_dict
@@ -773,11 +723,12 @@ class Lattice(object):
         self, 
         mean_length: float, 
         exp_word_match: Dict[str, float], 
+        target_length: float,
         d_length=float('inf'), 
         uniform=False,
         lattice_topk=1,
         return_topk=-1,
-        use_rouge=True
+        use_rouge=False
     ):
         '''
         all_node_rouge_dict = {
@@ -863,6 +814,7 @@ class Lattice(object):
         self, 
         mean_length: float, 
         exp_word_match: Dict[str, float], 
+        target_length: float,
         d_length=float('inf'), 
         uniform=False,
         lattice_topk=1,
@@ -955,8 +907,8 @@ class Lattice(object):
             return_topk = lattice_topk
         topk_paths, topk_rouges = self._extract_topk_gain_paths(
             all_node_rouge_dict,
-            min_length=mean_length - d_length, 
-            max_length=mean_length + d_length,
+            min_length=target_length - d_length, 
+            max_length=target_length + d_length,
             topk=return_topk
         )
         return topk_paths, topk_rouges, all_node_rouge_dict
@@ -1231,8 +1183,17 @@ class Lattice(object):
         )
         return topk_paths, topk_rouges, all_node_rouge_dict
 
+
     def get_path_tokens(self, path):
         return [self.nodes[node]['tok_idx'] for node in path]
+
+
+    def get_path_lprob(self, path):
+        piter1, piter2 = iter(path), iter(path)
+        next(piter2)
+        return sum(self.edges[curr_node][next_node] 
+                   for curr_node, next_node in zip(piter1, piter2))
+
 
     def min_edge_path(self, start, end):
         '''
@@ -1267,33 +1228,6 @@ class Lattice(object):
             frontier = new_frontier
         return None # no path found
 
-    def sample(self, tokenizer, k=1, max_len=100):
-        seen_hashes = set()
-        sampled_seqs = []
-        while len(sampled_seqs) < k:
-            curr_node = random.sample(self.eos_list, 1)[0]
-            backward_steps = 0
-            curr_seq = []
-            curr_score = 0
-            while curr_node != self.sos:
-                curr_seq.append(curr_node)
-                options = list(self.reverse_edges[curr_node])
-                next_node = random.sample(options, 1)[0]
-                curr_score += self.reverse_edges[curr_node][next_node]
-                curr_node = next_node
-                backward_steps += 1
-                if backward_steps > max_len:
-                    break
-            else:
-                # if while loop terminated normally (i.e. we did not break)
-                curr_seq = curr_seq[::-1]
-                curr_seq_ids = self.get_path_tokens(curr_seq)
-                curr_seq_str = tokenizer.decode(curr_seq_ids, skip_special_tokens=True)
-                curr_hash = hash(curr_seq_str)
-                if curr_hash in seen_hashes:
-                    continue
-                sampled_seqs.append((curr_seq_str, len(curr_seq), curr_score / len(curr_seq), curr_seq))
-        return sampled_seqs
 
     def get_mbr_score(
         self, 
@@ -1358,6 +1292,206 @@ class Lattice(object):
         '''
         result_files = os.listdir(result_dir)
         for filename in tqdm(result_files, disable=no_tqdm):
+            if '38744782_In-2015,-t.pkl' in filename:
+                print("Skipping:", filename)
+                continue
             output = Lattice._read_result(result_dir, filename)
             nodes, edges = Lattice._get_graph(output.ends)
             yield (Lattice(nodes, edges), output)
+
+
+# some experimental code that may or may not make the lattice faster
+# by vectorized opeations
+
+import torch
+
+class FastLattice(Lattice):
+    def __init__(self, node_dict, edge_dict):
+        super(FastLattice, self).__init__(node_dict, edge_dict)
+
+        vocab_indices = set()
+        for node in self.nodes:
+            vocab_indices.add(node['tok_idx'])
+
+        self.lattice_to_model = torch.tensor(sorted(vocab_indices), dtype=torch.int64)
+        # self.model_to_lattice = torch.zeros(torch.max(self.lattice_to_model)+1, dtype=torch.int64)
+        # self.model_to_lattice[self.lattice_to_model] = torch.arange(len(self.lattice_to_model))
+        self.model_to_lattice = dict()
+        for i, idx in enumerate(self.lattice_to_model):
+            self.model_to_lattice[idx] = i
+
+
+    def get_1gram_dict(self, all_node_length_dict, target_length=None, allowed_deviation=0):
+        path_count_dict = self._get_node_path_count_dict(all_node_length_dict)
+
+        vocab_size = len(self.lattice_to_model)
+        all_node_word_dict = {node: (torch.full(vocab_size, -1e6), 
+                                     torch.zeros(vocab_size, dtype=torch.int32))
+                              for node in self.nodes}
+
+        visited = {self.sos}
+        def dfs_helper(node, length_to_here=0):
+            if node in visited:
+                return all_node_word_dict[node]
+            visited.add(node)
+
+            # idx of current token in *lattice vocabulary*
+            curr_idx = self.model_to_lattice[self.nodes[node]['tok_idx']]
+
+            curr_lprobs, curr_counts = all_node_word_dict[node]
+            for parent_node, edge_lprob in self.reverse_edges[node].items():
+                parent_lprobs, parent_counts = dfs_helper(parent_node, length_to_here=length_to_here+1)
+                curr_lprobs = np.logaddexp(curr_lprobs, parent_lprobs + edge_lprob)
+                curr_counts += parent_counts
+
+            # The number of paths that contain the current word is equal
+            # to the number of paths that reach the current node.
+            curr_lprobs[curr_idx], curr_counts[curr_idx] = path_count_dict[node]
+            
+            all_node_word_dict[node] = (curr_lprobs, curr_counts)
+            return (curr_lprobs, curr_counts)
+
+        for eos in self.eos_list:
+            dfs_helper(eos)
+        
+        # word_dict = self._extract_word_dict(all_node_word_dict)
+        word_lprobs = torch.full(vocab_size, -1e6)
+        word_counts = torch.zeros(vocab_size, dtype=torch.int32)
+        for eos in self.eos_list:
+            eos_lprobs, eos_counts = all_node_word_dict[eos]
+            word_lprobs = np.logaddexp(word_lprobs, eos_lprobs)
+            word_counts += eos_counts
+
+        return (word_lprobs, word_counts), all_node_word_dict
+    
+    def _extract_topk_gain_paths_vec(all_node_rouge_dict, min_length, max_length, topk):
+        topk_overall = []
+        for length in range(min_length, max_length+1):
+            pass
+
+
+
+    def get_top_rouge1_path(
+        self, 
+        mean_length: float, 
+        exp_word_match: Dict[str, float], 
+        target_length: float,
+        d_length=float('inf'), 
+        uniform=False,
+        lattice_topk=1,
+        return_topk=-1,
+        use_rouge=False
+    ):
+        '''
+        all_node_rouge_dict = {
+            node: {
+                length: (max expected rouge over all paths from sos to node, 
+                         max weighted sum of gains over all paths from sos to node,
+                         E[m(c, h)],
+                         parent in max rouge path,
+                         parent path idx)
+            }
+        }
+
+        With slight modification to accomodate top-k instead of single top path:
+        length: heapdict({
+            curr_idx: (E[sum of gains], E[rouge], E[m(c,h)], parent, parent_idx)
+        })
+        This uses the fact that tuple comparison in Python is lexicographic 
+        (i.e. first items are compared, then second, etc) so this ensures
+        that our minheap still operates with expected gain as the key (with
+        ties broken arbitrarily).
+        '''
+        all_node_rouge_dict = {node: {} for node in self.nodes}
+        all_node_rouge_dict[self.sos] = {0: heapdict({0: (0, 0, 0, None, 0)})}
+        
+        max_allowed_len = target_length + d_length
+
+        visited = {self.sos}
+        def dfs_helper(node):
+            if node in visited:
+                return all_node_rouge_dict[node]
+            visited.add(node)
+            curr_idx = self.model_to_lattice[self.nodes[node]['tok_idx']]
+            curr_exp_match = exp_word_match[curr_idx] #TODO: this feels risky
+
+            num_cands = lattice_topk * len(self.reverse_edges[node])
+            exp_matches = torch.zeros(num_cands)
+
+            parents_in_order = []
+            min_len, max_len = float('inf'), 0
+
+            parent_results = []
+            for i, (parent, logprob) in self.reverse_edges[node].items():
+                parents_in_order.append(parent)
+                # parent_scores: (#lengths, k)
+                parent_scores, par_min_len, par_max_len, *_ = dfs_helper(parent)
+                new_min_len, new_max_len = par_min_len + 1, par_max_len + 1
+                if new_max_len > max_allowed_len:
+                    new_max_len = max_allowed_len
+                    num_removed = new_max_len - max_allowed_len
+                    parent_scores = parent_scores[:, -num_removed]
+                parent_results.append(parent_scores, new_min_len, new_max_len, logprob)
+                min_len = min(min_len, new_min_len)
+                max_len = max(max_len, new_max_len)
+            
+            curr_scores = torch.full((max_len - min_len, len(parent_results) * lattice_topk), -1e6)
+            for i, (parent_scores, par_min_len, par_max_len, parent_lprob) in enumerate(parent_results):
+                start_idx, end_idx = par_min_len - min_len, par_max_len - min_len
+                curr_scores[start_idx:end_idx] = parent_scores + curr_exp_match * np.exp(parent_lprob)
+
+            topk = torch.topk(curr_scores, k=lattice_topk, dim=-1)
+
+
+                # exp_matches[i:i+lattice_topk] = parent_scores + curr_exp_match * np.exp(logprob)
+
+                # parent_rouge_dict = dfs_helper(parent)
+                # for parent_length, parent_topk_paths in parent_rouge_dict.items():
+                #     for parent_idx, parent_entry in parent_topk_paths.items():
+                #         (parent_score, parent_rouge, parent_match, *_) = parent_entry
+
+                #         new_length = parent_length + 1
+                #         new_match = parent_match + curr_exp_match
+                #         new_rouge = 2 * new_match / (new_length + mean_length)
+
+                #         if use_rouge:
+                #             gain = new_rouge - parent_rouge
+                #         else:
+                #             gain = curr_exp_match
+                #         if uniform:
+                #             logprob = 0
+                #         new_score = parent_score + gain * np.exp(logprob)
+                        
+                #         if new_length not in curr_rouge_dict:
+                #             curr_rouge_dict[new_length] = heapdict({
+                #                 0: (new_score, new_rouge, new_match, parent, parent_idx)
+                #             })
+                #             curr_rouge_dict_indices[new_length] += 1
+                #         else:
+                #             curr_len_topk = curr_rouge_dict[new_length]
+                #             curr_idx = curr_rouge_dict_indices[new_length]
+                #             curr_rouge_dict_indices[new_length] += 1
+                #             curr_len_topk[curr_idx] = (new_score, new_rouge, new_match, parent, parent_idx)
+                #             if len(curr_len_topk) > lattice_topk:
+                #                 curr_len_topk.popitem()
+            topk = torch.topk(exp_matches, k=lattice_topk, sorted=True)
+            topk_scores = topk.values
+            topk_parents = topk.indices // lattice_topk
+            topk_indices = topk.indices % lattice_topk
+
+            all_node_rouge_dict[node] = (topk_scores, topk_parents, topk_indices)
+            return (topk_scores, topk_parents, topk_indices)
+
+        for eos in self.eos_list:
+            dfs_helper(eos)
+
+        if return_topk < 1:
+            return_topk = lattice_topk
+
+        topk_paths, topk_rouges = self._extract_topk_gain_paths_vec(
+            all_node_rouge_dict,
+            min_length=mean_length-d_length, 
+            max_length=mean_length+d_length, 
+            topk=return_topk
+        )
+        return topk_paths, topk_rouges, all_node_rouge_dict

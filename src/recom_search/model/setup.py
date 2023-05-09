@@ -46,7 +46,7 @@ def read_mt_data(path='/mnt/data1/jcxu/lattice-sum/mt-data/use', name='zh-en'):
 # MODEL_CACHE = '/mnt/data1/jcxu/cache'
 
 
-def setup_model(task='sum', dataset='xsum', model_name='facebook/bart-large-xsum', device_name='cpu'):
+def setup_model(task='sum', dataset='xsum', model_name='facebook/bart-large-xsum', device_name='cpu', cache_dir=None):
     global tokenizer, model, data_set, dec_prefix
     device = torch.device(device_name)
     print(model_name)
@@ -65,10 +65,12 @@ def setup_model(task='sum', dataset='xsum', model_name='facebook/bart-large-xsum
     elif task == 'sum':
         logging.info('Loading dataset')
         if dataset == 'xsum':
-            dataset = load_dataset("xsum", split='validation')
+            dataset = load_dataset("xsum", split='validation', 
+                                   cache_dir=cache_dir)
         elif dataset == 'cnndm':
             # raise NotImplementedError("not supported")
-            dataset = load_dataset("ccdv/cnn_dailymail", '3.0.0', split='validation')
+            dataset = load_dataset("ccdv/cnn_dailymail", '3.0.0', split='validation', 
+                                   cache_dir=cache_dir)
             print("CNNDM mean token in ref 56")
         dec_prefix = [tokenizer.eos_token_id]
     elif task == 'mt1n':
@@ -128,7 +130,7 @@ def setup_logger(name):
     now_time = datetime.datetime.now()
     logname = f"logs/{name}{str(now_time)[:16]}.txt"
     logger = logging.getLogger()
-    logger.setLevel(logging.WARNING)
+    logger.setLevel(logging.INFO)
 
     handler = logging.StreamHandler(sys.stdout)
     handler.setLevel(logging.INFO)

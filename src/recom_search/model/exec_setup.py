@@ -1,11 +1,18 @@
-from src.recom_search.model.setup import process_arg,render_address,setup_logger,setup_model
+import sys
 
-args, grouped_args = process_arg()
-dict_io = render_address(root=args.path_output)
-setup_logger(name=f"{args.task}_{args.model}_{args.dataset}")
+is_run_pipeline = any("run_pipeline.py" in arg for arg in sys.argv)
+
+from src.recom_search.model.setup import process_arg, render_address, setup_logger, setup_model
+
+args, grouped_args = None, None
 tokenizer = None
 model = None
 dataset = None
 dec_prefix = None
-if args.lattice_metric is None:
+
+if is_run_pipeline: # only setup in if we're running the main pipeline script
+    args, grouped_args = process_arg()
+    dict_io = render_address(root=args.path_output)
+    setup_logger(name=f"{args.task}_{args.model}_{args.dataset}")
+    print(args)
     tokenizer, model, dataset, dec_prefix = setup_model(task=args.task,dataset= args.dataset, model_name=args.hf_model_name, device_name=args.device)
