@@ -20,7 +20,7 @@ def render_address(root = 'output') ->dict:
     create name of subdirectories
     """
     d = {
-        'data':os.path.join(root, 'data'),
+        'data':os.path.join(root, 'cnndm-zip'),
         'html':os.path.join(root, 'html'),
         'stat':os.path.join(root, 'stat'),
         'text':os.path.join(root, 'text'),
@@ -153,6 +153,7 @@ def process_arg():
                         'dbs', 'bs', 'greedy', 'topp', 'temp', 'bs_recom', 'sample_recom', 'bfs','bfs_recom'], default='bs')
     parser.add_argument('-beam_size', type=int, default=15)
     parser.add_argument('-nexample', type=int, default=100)
+    parser.add_argument('-startexample', type=int, default=0)
 
     parser.add_argument('-task', type=str, default='sum',
                         choices=['sum', 'mt1n', 'mtn1', 'custom'], help='for custom, you need to define your data IO')
@@ -185,7 +186,9 @@ def process_arg():
                         const=True, default=False, help='our model: always generate till the end once touch a node')
     parser.add_argument('-post_ratio', type=float, default=0.4,
                         help='our model: ratio of resource allocation')
-    
+    parser.add_argument('-temperature_sample', default=False, action="store_true", help="whether to use temperature sampling instead of best match in search")
+    parser.add_argument('-T', type=float, default=1.0, help="temperature for temperature sampling; crowd sampling recommends 0.7; use default (1.0) for non-temp-sampling methods")
+
     # start of depricated
     parser.add_argument('-heu_seq_score', type=float, default=0.0,
                         help='Heuristic: consider the score of previously generated sequence. this is the weight term for that')

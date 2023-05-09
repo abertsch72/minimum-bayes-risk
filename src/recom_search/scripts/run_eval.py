@@ -53,7 +53,7 @@ def run_bs_recombination(args, model, input_doc, dec_prefix, param_sim_function,
     else:
         adj_batch_size = args.beam_size
     output = recomb_baseline(doc_input_ids=input_ids, dec_prefix=dec_prefix, param_sim_function=param_sim_function,
-                              model=model, debug=False, beam_size=adj_batch_size, max_len=cur_max_len, avg_score=args.avg_score)
+                              model=model, debug=False, beam_size=adj_batch_size, max_len=cur_max_len, avg_score=args.avg_score, T=args.T, temperature_sample=args.temperature_sample)
     mo = SearchModelOutput(ends=output)
     return mo
 
@@ -66,7 +66,7 @@ def run_recom_sample(args, model, input_doc, dec_prefix, param_sim_function) -> 
     else:
         cur_max_len = args.max_len
     output = baseline_recomb_sample(doc_input_ids=input_ids, dec_prefix=dec_prefix, param_sim_function=param_sim_function,
-                                     model=model, max_len=cur_max_len, num_return_hypo=args.beam_size, top_p=args.top_p)
+                                     model=model, max_len=cur_max_len, num_return_hypo=args.beam_size, top_p=args.top_p, T=args.T, temperature_sample=args.temperature_sample)
 
     mo = SearchModelOutput(ends=output)
     return mo
@@ -105,7 +105,7 @@ def run_bfs_recombination(args, model, tokenizer, inp, dec_prefix, param_sim_fun
         comp_budget = args.max_len * args.beam_size
         cur_max_len = args.max_len
     output = bfs_rcb_any(doc_input_ids=input_ids, model=model, tokenizer=tokenizer, param_sim_function=param_sim_function, dec_prefix=dec_prefix, avg_score=args.avg_score,
-                    max_len=cur_max_len, k_best=5, comp_budget=comp_budget, config_heu=config_heu, config_search=config_search)
+                    max_len=cur_max_len, k_best=5, comp_budget=comp_budget, config_heu=config_heu, config_search=config_search, T=args.T, temperature_sample=args.temperature_sample)
 
     mo = SearchModelOutput(ends=output)
     return mo
@@ -169,12 +169,16 @@ def run_model(args, tokenizer, model, dataset, dec_prefix, wt_dir):
 
     # logging.info(args)
     nexample = args.nexample
+    startexample = args.startexample
     cnt = 0
-    if not isinstance(dataset, zip):
-        dataset = dataset.shuffle(seed=2021)
+    #if not isinstance(dataset, zip):
+    #    dataset = dataset.shuffle(seed=2021)
 
     logging.info(f"Truncate dataset to {nexample} examples")
+    logging.info(f"Start generating at example #{startexample}")
     for idx, example in enumerate(tqdm(dataset)):
+        if idx < startexample:
+            continue
         cnt += 1
         if args.task.startswith('mt'):
             document = example[0]
@@ -187,6 +191,8 @@ def run_model(args, tokenizer, model, dataset, dec_prefix, wt_dir):
             inp = "\n".join(sents[:10])[:5000]
             doc_id = example['id']
             ref_sum = example['highlights']
+            sents = document.split('\n')
+            inp = "\n".join(sents[:])[:5000]
         elif args.dataset == 'xsum':
             document = example['document']
             sents = document.split('\n')

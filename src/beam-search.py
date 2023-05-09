@@ -20,7 +20,7 @@ def run_beam_search(args):
         dp = dataset[bs_split]["document"][i]
         input_ids = tokenizer.encode(dp, return_tensors='pt', truncation=True, max_length=1024).cuda()
 
-        outputs = model.generate(input_ids, do_sample=False, max_length=70, num_beams=50, num_return_sequences=50)
+        outputs = model.generate(input_ids, do_sample=False, max_length=70, num_beams=num, num_return_sequences=num)
         outputs_decoded = tokenizer.batch_decode(outputs, skip_special_tokens=True)
 
         all_outputs.append({

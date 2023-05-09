@@ -47,7 +47,7 @@ def main() -> int:
         comp_budget = args.max_len * args.beam_size
         cur_max_len = args.max_len
     
-    output = bfs(doc_input_ids=input_ids, model=model, tokenizer=tokenizer, dec_prefix=dec_prefix, avg_score=args.avg_score, max_len=cur_max_len, k_best=args.k_best, comp_budget=comp_budget, config_heu=None, config_search=config_search)
+    output = bfs(doc_input_ids=input_ids, model=model, tokenizer=tokenizer, dec_prefix=dec_prefix, avg_score=args.avg_score, max_len=cur_max_len, k_best=args.k_best, comp_budget=comp_budget, config_heu=None, config_search=config_search, temperature_sample=args.temperature_sample)
 
     mo = SearchModelOutput(ends=output)
     print(mo)
