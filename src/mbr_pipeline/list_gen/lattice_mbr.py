@@ -115,9 +115,8 @@ def get_lattice_methods(args, lattice):
     return getattr(lattice, dict_method_name), getattr(lattice, path_method_name)
 
 
-def run_lattice_mbr(args):
-    tokenizer = AutoTokenizer.from_pretrained(args.hf_model_name)
-    
+def run_lattice_mbr(input_ids, latticedir, tokenizer, num_seqs, k, sample_uniform, max_len, no_repeats, lattice_score_temp):
+  
     all_topk_hypos = []
     for lattice, output in Lattice.load_lattices(args.lattice_dir):
         topk_hypos, hypo_lprobs = decode_hypos_from_lattice(args, lattice, tokenizer)

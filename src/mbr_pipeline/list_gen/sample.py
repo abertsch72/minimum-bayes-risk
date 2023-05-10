@@ -3,7 +3,9 @@ from tqdm import tqdm
 import jsonlines
 from typing import Sequence, Text, Union, Callable
 from enum import Enum
+from scipy.special import softmax, logsumexp
 from dataclasses import dataclass
+import random
 import numpy as np 
 
 
@@ -21,37 +23,16 @@ class SamplingMethods:
         return model.generate(input_ids, do_sample=True, max_length=max_length, top_p=nucleus, num_return_sequences=num_seqs, output_scores=True, return_dict_in_generate=True)
 
     @staticmethod
-    def run_lattice_sampling(input_ids, model, tokenizer, num_seqs, k, sample_uniform, max_len, no_repeats, lattice_score_temp):
-        
-        all_hypos = []
-        for lattice, output in Lattice.load_lattices(args.lattice_dir, no_tqdm=args.no_tqdm):
-            topk_hypos = sample_k(
-                lattice, tokenizer, 
-                k=k, 
-                uniform=sample_uniform,
-                max_len=max_len,
-                no_repeats=no_repeats,
-                temp=lattice_score_temp
-            )
-            hypos = [v[0] for v in topk_hypos]
-            lprobs = [v[1] for v in topk_hypos]
-            # sort from greatest to least
-            sorted_order = np.argsort(lprobs)[::-1]
-            hypos = [hypos[i] for i in sorted_order]
-            lprobs = [lprobs[i] for i in sorted_order]
-            all_hypos.append({
-                "hypos": hypos,
-                "lprobs": lprobs, # LOG probabilities
-                "gold": output.reference,
-                "doc_id": output.doc_id
-            })
+    #TODO: fix args
+    def lattice_mbr():
+        from src.mbr_pipeline.list_gen.lattice_mbr import run_lattice_mbr
+        return run_lattice_mbr()
 
-        with jsonlines.open(args.outfile, "w") as f:
-            f.write_all(all_hypos)
-
-        if args.wandb:
-            wandb.log({"topk": all_hypos})
-
+    @staticmethod
+    #TODO: fix linking
+    def lattice_sampling(input_ids, latticedir, tokenizer, num_seqs, k, sample_uniform, max_len, no_repeats, lattice_score_temp):
+        from src.mbr_pipeline.list_gen.lattice_sample import run_lattice_sampling
+        return run_lattice_sampling(input_ids, latticedir, tokenizer, num_seqs, k, sample_uniform, max_len, no_repeats, lattice_score_temp)
 
 class SamplingStrategy(Enum):
     beam = SamplingMethods.beam_search
@@ -59,8 +40,13 @@ class SamplingStrategy(Enum):
     nucleus = SamplingMethods.nucl_sample
     greedy = 3
 
-def listgen_lattice(strategy_fn: Callable, model, tokenizer, dataset, strategy_args):
-    pass
+def listgen_lattice(strategy_fn: Callable, model, tokenizer, dataset, outfile, strategy_args):
+    model.eval()
+    all_hypos = strategy_fn(model, tokenizer, dataset, **strategy_args)
+
+    with jsonlines.open(outfile, 'w') as f:
+        f.write_all(all_hypos)
+    
 
 def listgen(strategy_fn: Callable, model, tokenizer, dataset, device, outfile, num_seqs, max_length, strategy_args):
     all_hypos = []

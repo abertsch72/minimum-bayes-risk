@@ -66,7 +66,7 @@ match args.gen.method_args:
 
 if args.gen.outfile is None:
     import os
-    thisdir = ["sampling_outputs", args.dataset.dataset.name, str(args.gen.k)]
+    thisdir = ["sampling_outputs", args.dataset.dataset.name, args.pipeline.hf_model_name.replace("/","-"), str(args.gen.k)]
     constructed_path = ""
     for item in thisdir:
         constructed_path = os.path.join(constructed_path, item)
