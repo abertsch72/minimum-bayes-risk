@@ -40,15 +40,13 @@ class SamplingStrategy(Enum):
     nucleus = SamplingMethods.nucl_sample
     greedy = 3
 
-def listgen_lattice(strategy_fn: Callable, model, tokenizer, dataset, outfile, strategy_args):
+def listgen_lattice(strategy_fn: Callable, model, tokenizer, dataset, strategy_args):
     model.eval()
     all_hypos = strategy_fn(model, tokenizer, dataset, **strategy_args)
 
-    with jsonlines.open(outfile, 'w') as f:
-        f.write_all(all_hypos)
     
 
-def listgen(strategy_fn: Callable, model, tokenizer, dataset, device, outfile, num_seqs, max_length, strategy_args):
+def listgen(strategy_fn: Callable, model, tokenizer, dataset, device, num_seqs, max_length, strategy_args):
     all_hypos = []
     model.eval()
 
@@ -71,7 +69,5 @@ def listgen(strategy_fn: Callable, model, tokenizer, dataset, device, outfile, n
         outputs= {"document": dp, "gold": dataset["output"][i], "id": dataset["id"][i], \
             "all_samples": outputs_decoded, "num_unique": len(set(outputs)), "lprobs": reconstructed_scores} #TODO: add lprobs in
         all_hypos.append(outputs)
-
-    with jsonlines.open(outfile, 'w') as f:
-        f.write_all(all_hypos)
     
+    return all_hypos

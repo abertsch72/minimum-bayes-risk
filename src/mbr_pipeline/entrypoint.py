@@ -6,10 +6,12 @@ from argparse import ArgumentParser
 import wandb
 import torch
 from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
+import jsonlines
 
 from src.mbr_pipeline.utils.choose_dataset import get_dataset
 from src.mbr_pipeline.args import Args, load_args
 from src.mbr_pipeline.list_gen import sample
+from src.mbr_pipeline.list_eval.evaluate import Metrics
 
 assert __name__ == '__main__'
 
@@ -55,7 +57,7 @@ match args.gen.method_args:
         # load the lattices
 
         # call the relevant func
-        pass
+        raise NotImplementedError()
     case Args.ListGenArgs.BeamSearchArgs():
         strategy_fn = SamplingMethods.beam_search
         method_name="beam"
@@ -63,6 +65,7 @@ match args.gen.method_args:
         # TODO: handle temp and nucl differently
         strategy_fn = SamplingMethods.nucl_sample
         method_name="nucl"
+        raise NotImplementedError()
 
 if args.gen.outfile is None:
     import os
@@ -79,5 +82,19 @@ if args.gen.outfile is None:
     args.gen.outfile = os.path.join(constructed_path, f"{method_name}-{str_args}.jsonl")
 
 sampling_outputs = listgen(strategy_fn=strategy_fn, model=model, tokenizer=tokenizer, dataset=dataset, \
-    device=device, outfile=args.gen.outfile, num_seqs=args.gen.k, max_length=args.gen.max_length, \
+    device=device, num_seqs=args.gen.k, max_length=args.gen.max_length, \
     strategy_args=args.gen.method_args.__dict__)
+
+
+#with jsonlines.open(args.outfile, 'w') as f:
+#    f.write_all(sampling_outputs)
+
+
+# reranking section
+
+# evaluation section
+metric_tracker = Metrics(args.eval.eval_metrics) 
+
+
+metric_tracker.score_set(sampling_outputs)
+metric_tracker.output()

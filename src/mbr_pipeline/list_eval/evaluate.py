@@ -1,7 +1,6 @@
-from mbr_pipeline.args import get_parser
 from rouge_score import rouge_scorer
 import sacrebleu
-from scorers import (
+from src.mbr_pipeline.list_eval.scorers import (
     Scorer, Score, self_bleu,
     rescore_bartscore, rescore_bertscore, rescore_rouge
 )
@@ -26,7 +25,7 @@ class C:
 
 
 class Metrics:
-    def __init__(self, args, eval_metrics):
+    def __init__(self, eval_metrics):
         self.args = args
         self.scorer = Scorer(eval_metrics)
         self.eval_metrics = eval_metrics
@@ -146,7 +145,7 @@ class Metrics:
 def run_eval(args):
     eval_metrics = [x.strip() for x in args.eval_metrics.split(',')]
 
-    metric_tracker = Metrics(args, eval_metrics) 
+    metric_tracker = Metrics(eval_metrics) 
 
     with jsonlines.open(args.outfile) as f:
         lines = list(iter(f))
