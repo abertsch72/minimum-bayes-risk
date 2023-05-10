@@ -9,7 +9,7 @@ from scipy.special import softmax, logsumexp
 
 from lattice import Lattice
 from mbr_pipeline.args import get_parser
-from utils import set_seed
+from mbr_pipeline.utils.utils import set_seed
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 

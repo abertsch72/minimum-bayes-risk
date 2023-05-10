@@ -8,7 +8,7 @@ from scipy.special import softmax, logsumexp
 import jsonlines
 from tqdm import tqdm
 import wandb
-from utils import set_seed
+from mbr_pipeline.utils.utils import set_seed
 
 
 def sample_path(lattice: Lattice, uniform=False, max_len=float('inf'), temp=1.0):

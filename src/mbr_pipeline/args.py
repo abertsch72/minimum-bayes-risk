@@ -25,12 +25,12 @@ class Args:
     @dataclass_json
     @dataclass
     class DatasetArgs:
-        class SupportedDataset(str, Enum):
+        class SupportedDataset(Enum):
             samsum = ["samsum"]
             cnndm = ["cnn_dailymail", "3.0.0"]
             xsum = ["xsum"]
             def __str__(e):
-                return e.value
+                return e.name
 
 
         class DataSplit(str, Enum):
@@ -38,13 +38,15 @@ class Args:
             test = "test"
             train = "train"
             def __str__(e):
-                return e.value
+                return e.name
 
-        dataset: Union[SupportedDataset,str] = field(metadata=config(
-                    decoder= lambda d: d if d in Args.DatasetArgs.SupportedDataset else None
+        dataset: Union[str, SupportedDataset] = field(metadata=config(
+                   encoder = lambda d: d.name if isinstance(d, Args.DatasetArgs.SupportedDataset) else d,
+                   decoder = lambda d: d if isinstance(d, Args.DatasetArgs.SupportedDataset) else Args.DatasetArgs.SupportedDataset[d]
                 ))
-        split: Union[DataSplit, str] = field(metadata=config(
-                    decoder= lambda d: d if d in Args.DatasetArgs.DataSplit else None
+        split: Union[str, DataSplit] = field(metadata=config(
+                   encoder = lambda d: d.name if isinstance(d, Args.DatasetArgs.DataSplit) else d,
+                   decoder = lambda d: d if isinstance(d, Args.DatasetArgs.DataSplit) else Args.DatasetArgs.DataSplit[d]
                 ))
         start_index: int = 0
         end_index: int = -1
