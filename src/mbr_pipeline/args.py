@@ -1,7 +1,7 @@
-import json
-from transformers import HfArgumentParser
-from typing import Optional, Literal, Union, get_type_hints
+from enum import Enum
+from typing import Optional, Union
 from dataclasses import dataclass, field
+
 from dataclasses_json import dataclass_json, config
 import marshmallow as mm
 
@@ -14,16 +14,40 @@ class Args:
         """
         General arguments
         """
-        hf_model_name: Optional[str] = field(default='facebook/bart-large-xsum')
-        wandb: Optional[bool] = field(default=False)
+        hf_model_name: str = field()
+        hf_tokenizer_name: Optional[str] = field(default=hf_model_name)
+        wandb: Optional[bool] = field(default=True)
         wandb_group: Optional[str] = field(default=None)
         run_name: Optional[str] = field(default=None)
-        seed: Optional[int] = field(default=None)
+        seed: Optional[int] = field(default=101)
         no_tqdm: Optional[bool] = field(default=False)
-        config: Optional[str] = field(
-            default=None,
-            metadata={"help": "File containing command line flags in json format."}
-        )
+
+    @dataclass_json
+    @dataclass
+    class DatasetArgs:
+        class SupportedDataset(str, Enum):
+            samsum = ["samsum"]
+            cnndm = ["cnn_dailymail", "3.0.0"]
+            xsum = ["xsum"]
+            def __str__(e):
+                return e.value
+
+
+        class DataSplit(str, Enum):
+            val = "validation"
+            test = "test"
+            train = "train"
+            def __str__(e):
+                return e.value
+
+        dataset: Union[SupportedDataset,str] = field(metadata=config(
+                    decoder= lambda d: d if d in Args.DatasetArgs.SupportedDataset else None
+                ))
+        split: Union[DataSplit, str] = field(metadata=config(
+                    decoder= lambda d: d if d in Args.DatasetArgs.DataSplit else None
+                ))
+        start_index: int = 0
+        end_index: int = -1
 
     @dataclass_json
     @dataclass
@@ -207,18 +231,15 @@ class Args:
         outfile: Optional[str] = field(default=None)
 
 
-    pipeline: Optional[PipelineArgs]
+    pipeline: PipelineArgs
+    dataset: DatasetArgs
     gen: Optional[ListGenArgs]
     rerank: Optional[ListRerankArgs]
     eval: Optional[EvalArgs]
 
-def load_args(config_file, wandb=None):
+def load_args(config_file: str) -> Args:
     # json to args with validation
     import json
     config = json.dumps(json.load(open(config_file)))
     args = Args.schema().loads(config)
-    
-    if wandb:
-        wandb.config.update(config)
-
     return args
