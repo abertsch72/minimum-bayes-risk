@@ -212,37 +212,13 @@ class Args:
     rerank: Optional[ListRerankArgs]
     eval: Optional[EvalArgs]
 
-"""
-def get_parser(
-    modelsamp=False, 
-    latticembr=False, 
-    latticesamp=False, 
-    rerank=False,
-):
-    dataclass_types = [Args]
-    if any([latticembr, latticesamp, modelsamp]):
-        dataclass_types.append(ListGenArgs)
+def load_args(config_file, wandb=None):
+    # json to args with validation
+    import json
+    config = json.dumps(json.load(open(config_file)))
+    args = Args.schema().loads(config)
+    
+    if wandb:
+        wandb.config.update(config)
 
-        for should_add, data_cls in zip(
-            [latticembr,     latticesamp,         modelsamp],
-            [LatticeMBRArgs, LatticeSamplingArgs, ModelSamplingArgs]
-        ):
-            if should_add:
-                dataclass_types.append(data_cls)
-    elif rerank:
-        dataclass_types.append(ListRerankArgs)
-    else:
-        dataclass_types.append(EvalArgs)
-
-    parser = HfArgumentParser(dataclass_types)
-    return parser
-
-def get_args(parser):
-    args, *_ = parser.parse_known_args()
-    if args.config is not None:
-        with open(args.config) as f:
-            args_from_config = json.load(f)
-        for k, v in args_from_config.items():
-            setattr(args, k, v)
     return args
-"""
