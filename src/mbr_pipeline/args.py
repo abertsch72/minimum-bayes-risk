@@ -21,6 +21,7 @@ class Args:
         run_name: Optional[str] = field(default=None)
         seed: Optional[int] = field(default=101)
         no_tqdm: Optional[bool] = field(default=False)
+        no_gpu: Optional[bool] = field(default=False)
 
     @dataclass_json
     @dataclass
@@ -63,7 +64,7 @@ class Args:
             """
             Arguments pertaining to beam search top-k list generation
             """
-            beam_width: Optional[int] = field(default=50)
+            num_beams: Optional[int] = field(default=50)
 
         @dataclass_json
         @dataclass
@@ -191,12 +192,13 @@ class Args:
                     decoder= lambda d: Args.ListGenArgs.decode(d)
                 )
             )
-        outfile: Optional[str] = field(default=None)
+        max_length: int
         k: Optional[int] = field(
             default=50,
             metadata={"help": "Length of top-k list"},
         )
-
+        outfile: Optional[str] = field(default=None)
+        
     @dataclass_json
     @dataclass
     class ListRerankArgs:
@@ -245,3 +247,10 @@ def load_args(config_file: str) -> Args:
     config = json.dumps(json.load(open(config_file)))
     args = Args.schema().loads(config)
     return args
+
+
+def save_args(args: Args, config_file: str) -> None:
+    # args to json
+    import json
+    with open(config_file, 'w') as f:
+        json.dump(args.to_dict(), f, indent=4)
