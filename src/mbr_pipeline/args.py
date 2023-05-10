@@ -15,7 +15,7 @@ class Args:
         General arguments
         """
         hf_model_name: str = field()
-        hf_tokenizer_name: Optional[str] = field(default=hf_model_name)
+        hf_tokenizer_name: Optional[str] = field(default=None)
         wandb: Optional[bool] = field(default=True)
         wandb_group: Optional[str] = field(default=None)
         run_name: Optional[str] = field(default=None)
