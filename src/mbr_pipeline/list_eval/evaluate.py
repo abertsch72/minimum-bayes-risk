@@ -26,7 +26,6 @@ class C:
 
 class Metrics:
     def __init__(self, eval_metrics):
-        self.args = args
         self.scorer = Scorer(eval_metrics)
         self.eval_metrics = eval_metrics
 
@@ -100,7 +99,7 @@ class Metrics:
                 correlations = item[corr_key]
                 pvalues = item[pvalue_key]
             else:
-                rerank_scores = item[f"rerank_scores_{rerank_type}"]
+                rerank_scores = item[f"rerank_scores_{rerank_type}"] 
                 max_rerank_idx = np.argmax(rerank_scores)
                 max_rerank_score = scores[max_rerank_idx].score_dict
 
@@ -141,6 +140,7 @@ class Metrics:
     def score_set(self, outputs):
         for output in tqdm(outputs):
             self.evaluate(output)
+        return outputs
 
 def run_eval(args):
     eval_metrics = [x.strip() for x in args.eval_metrics.split(',')]

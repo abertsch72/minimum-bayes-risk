@@ -86,15 +86,21 @@ sampling_outputs = listgen(strategy_fn=strategy_fn, model=model, tokenizer=token
     strategy_args=args.gen.method_args.__dict__)
 
 
-#with jsonlines.open(args.outfile, 'w') as f:
-#    f.write_all(sampling_outputs)
+with jsonlines.open(args.gen.outfile, 'w') as f:
+    f.write_all(sampling_outputs)
 
 
 # reranking section
 
 # evaluation section
-metric_tracker = Metrics(args.eval.eval_metrics) 
+metric_tracker = Metrics(args.eval.eval_metrics.split(",")) 
 
 
-metric_tracker.score_set(sampling_outputs)
+metrics_outputs = metric_tracker.score_set(sampling_outputs)
 metric_tracker.output()
+
+if args.eval.outfile is None:
+    args.eval.outfile = args.gen.outfile
+    
+with jsonlines.open(args.eval.outfile, 'w') as f:
+    f.write_all(metrics_outputs)

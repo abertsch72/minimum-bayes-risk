@@ -67,7 +67,7 @@ def listgen(strategy_fn: Callable, model, tokenizer, dataset, device, num_seqs, 
 
         outputs_decoded = tokenizer.batch_decode(outputs.sequences)
         outputs= {"document": dp, "gold": dataset["output"][i], "id": dataset["id"][i], \
-            "all_samples": outputs_decoded, "num_unique": len(set(outputs)), "lprobs": reconstructed_scores} #TODO: add lprobs in
+            "hypos": outputs_decoded, "num_unique": len(set(outputs)), "lprobs": reconstructed_scores} #TODO: add lprobs in
         all_hypos.append(outputs)
     
     return all_hypos

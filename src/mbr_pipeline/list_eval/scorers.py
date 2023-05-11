@@ -164,7 +164,7 @@ class Scorer(object):
                     scores[i][m] = s.fmeasure
         if self.bertscore is not None:
             bert_scores = self.bertscore.compute(
-                predictions=hypos, references=[gold], 
+                predictions=hypos, references=[gold]*len(hypos), 
                 lang='en', device=device, batch_size=min(len(hypos), 64)
             )
             for i in range(len(hypos)):
