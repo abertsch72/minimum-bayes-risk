@@ -89,7 +89,8 @@ class Metrics:
 
         amt_to_strip = len("rerank_scores_")
         rerank_types = [k[amt_to_strip:] for k in item if k.startswith("rerank_scores_")]
-        
+        rerank_types.append("lprobs")
+
         for rerank_type in rerank_types:
             top_rerank_key = f'top_rerank_{rerank_type}'
             corr_key = f'corr_{rerank_type}'
@@ -99,7 +100,7 @@ class Metrics:
                 correlations = item[corr_key]
                 pvalues = item[pvalue_key]
             else:
-                rerank_scores = item[f"rerank_scores_{rerank_type}"] 
+                rerank_scores = item[f"rerank_scores_{rerank_type}"] if rerank_type != "lprobs" else [-prob for prob in item["lprobs"]]
                 max_rerank_idx = np.argmax(rerank_scores)
                 max_rerank_score = scores[max_rerank_idx].score_dict
 

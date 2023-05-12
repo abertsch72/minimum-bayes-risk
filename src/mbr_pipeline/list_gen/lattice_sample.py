@@ -10,14 +10,16 @@ from tqdm import tqdm
 import wandb
 from mbr_pipeline.utils.utils import set_seed
 
+from typing import Text
 
-def sample_path(lattice: Lattice, uniform=False, max_len=float('inf'), temp=1.0):
+
+def sample_path(lattice: Lattice, sample_uniform=False, max_len=float('inf'), temp=1.0):
     path = [lattice.sos]
     total_lprob = 0.0
     while path[-1] not in lattice.eos_set and len(path) < max_len:
         curr_node = path[-1]
         neighbors = lattice.edges[curr_node]
-        if uniform:
+        if sample_uniform:
             options = list(neighbors)
             next_node = random.sample(options, 1)[0]
         else:
@@ -34,13 +36,17 @@ def sample_path(lattice: Lattice, uniform=False, max_len=float('inf'), temp=1.0)
     return path, total_lprob
 
 
-def sample_k(lattice, tokenizer, k, uniform=False, max_len=float('inf'), 
-             no_repeats=False, temp=1.0):
+def lattice_sample_k(lattice, tokenizer, num_seqs, output, sample_uniform=False, max_len=float('inf'), 
+             no_repeats=False, lattice_score_temp=1.0):
     topk_hypos = dict()
     count = 0
-    while count < k:
-        path, hypo_lprob = sample_path(lattice, uniform, max_len, temp)
+    
+    gold = output.reference,
+    id = output.doc_id
+    while count < num_seqs:
+        path, hypo_lprob = sample_path(lattice, sample_uniform, max_len, lattice_score_temp)
         hypo = tokenizer.decode(lattice.get_path_tokens(path), skip_special_tokens=True)
+
         hypo_hash = hash(hypo)
         if hypo_hash in topk_hypos: # hopefully hash collisions don't happen
             if no_repeats:
@@ -50,21 +56,31 @@ def sample_k(lattice, tokenizer, k, uniform=False, max_len=float('inf'),
         else:
             topk_hypos[hypo_hash] = (hypo, hypo_lprob)
         count += 1
-    return list(topk_hypos.values())
+
+    hypos = [v[0] for v in topk_hypos]
+    lprobs = [v[1] for v in topk_hypos]
+
+    num_unique = len(set(hypos))
+    return {"gold": gold,
+        "id": id,
+        "hypos": hypos,
+        "lprobs": lprobs,
+        "num_unique": num_unique
+        }
 
 
-def run_lattice_sampling(args):
-    tokenizer = AutoTokenizer.from_pretrained(args.hf_model_name, local_files_only=True)
-    
+"""
+def run_lattice_sampling(lattices, k: int, sample_sample_uniform: bool, max_len: int, no_repeats: bool, lattice_score_temp: float, tokenizer: AutoTokenizer):
+   
     all_hypos = []
-    for lattice, output in Lattice.load_lattices(args.lattice_dir, no_tqdm=args.no_tqdm):
+    for lattice, output in lattices:
         topk_hypos = sample_k(
             lattice, tokenizer, 
-            k=args.k, 
-            uniform=args.sample_uniform,
-            max_len=args.max_len,
-            no_repeats=args.no_repeats,
-            temp=args.lattice_score_temp
+            k=k, 
+            sample_uniform=sample_sample_uniform,
+            max_len=max_len,
+            no_repeats=no_repeats,
+            temp=lattice_score_temp
         )
         hypos = [v[0] for v in topk_hypos]
         lprobs = [v[1] for v in topk_hypos]
@@ -76,24 +92,9 @@ def run_lattice_sampling(args):
             "hypos": hypos,
             "lprobs": lprobs, # LOG probabilities
             "gold": output.reference,
-            "doc_id": output.doc_id
+            "id": output.doc_id,
+            "num_unique": len(set(hypos))
         })
 
-    with jsonlines.open(args.outfile, "w") as f:
-        f.write_all(all_hypos)
-
-    if args.wandb:
-        wandb.log({"topk": all_hypos})
-
-
-if __name__ == "__main__":
-    parser = get_parser(latticesamp=True)
-    args = parser.parse_args()
-    set_seed(args.seed)
-    if args.wandb:
-        *_, ls_args = parser.parse_args_into_dataclasses()
-        wandb.init(project='lattice-decoding', entity='gormleylab', 
-                   group=args.wandb_group, config=vars(ls_args))
-        if args.run_name:
-            wandb.run.name = args.run_name
-    run_lattice_sampling(args)
+    return all_hypos
+"""

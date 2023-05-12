@@ -13,15 +13,16 @@
         "dataset": "samsum",
         "split": "val",
         "start_index": 0,
-        "end_index": 20
+        "end_index": -1
     },
     "gen": {
         "method_args": {
-            "num_beams": 10
+            "lattice_dir": "",
+            "max_len": 50
         },
-        "outfile": null,
-        "k": 10,
-        "max_length": 60
+        "max_length": 50,
+        "k": 50,
+        "outfile": null
     },
     "rerank": {
         "rerank_metric": null,

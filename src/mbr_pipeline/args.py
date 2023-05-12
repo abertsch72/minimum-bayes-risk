@@ -22,6 +22,10 @@ class Args:
         seed: Optional[int] = field(default=101)
         no_tqdm: Optional[bool] = field(default=False)
         no_gpu: Optional[bool] = field(default=False)
+        lattice_dir: str = field(
+            default='',
+            metadata={'help': 'directory where lattices are stored'}
+        )
 
     @dataclass_json
     @dataclass
@@ -72,6 +76,8 @@ class Args:
             """
             Arguments for all model-based sampling baselines
             """
+            temp: Optional[float] = field(default=1)
+            top_p: Optional[float] = field(default=1)
             
         @dataclass_json
         @dataclass
@@ -155,10 +161,6 @@ class Args:
             """
             Arguments pertaining to topk-list generation via direct sampling from the lattice
             """
-            lattice_dir: str = field(
-                default='',
-                metadata={'help': 'directory where lattices are stored'}
-            )
             sample_uniform: Optional[bool] = field(
                 default=False,
                 metadata={"help": "whether to ignore edge probs when sampling"}

@@ -1,6 +1,7 @@
 from datasets import load_dataset
 
 from src.mbr_pipeline.args import Args
+import src.mbr_pipeline.args as args
 
 DatasetArgs = Args.DatasetArgs
 
@@ -8,11 +9,11 @@ def get_dataset(dataset: DatasetArgs.SupportedDataset, split: DatasetArgs.DataSp
     full_data = load_dataset(*dataset.value, split=split.value)
     # TODO: move input/output under standardized names
     
-    match dataset:
-        case DatasetArgs.SupportedDataset.samsum:
+    match dataset.name:
+        case DatasetArgs.SupportedDataset.samsum.name:
             full_data = full_data.rename_column("dialogue", "input")
             full_data = full_data.rename_column("summary", "output")
-        case DatasetArgs.SupportedDataset.cnndm:
+        case DatasetArgs.SupportedDataset.cnndm.name:
             full_data = full_data.rename_column("article", "input")
             full_data = full_data.rename_column("highlights", "output")
 

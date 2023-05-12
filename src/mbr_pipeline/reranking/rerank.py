@@ -1,6 +1,5 @@
-from args import get_parser
 from rouge_score import rouge_scorer
-from scorers import (
+from src.mbr_pipeline.list_eval.scorers import (
     Scorer, Score, self_bleu,
     rescore_bartscore, rescore_bertscore, rescore_rouge
 )
@@ -14,12 +13,12 @@ from typing import List
 
 
 class Reranker:
-    def __init__(self, args, rerank_metric):
-        self.args = args
+    def __init__(self, rerank_temp, rerank_metric, rerank_geo_mean):
+        self.rerank_temp = rerank_temp
 
         self.rerank_metric = (rerank_metric,)
         if "rouge" in rerank_metric:
-            if args.rerank_geo_mean:
+            if rerank_geo_mean:
                 order = int(rerank_metric[5:])
                 self.rerank_metric = tuple(f"rouge{i}" for i in range(1, order+1))
             self.rerank_fn = lambda hypos, probs: rescore_rouge(hypos, probs, self.rerank_metric)
@@ -46,7 +45,7 @@ class Reranker:
         else:
             lprobs = np.zeros(len(hypos))
         
-        probs = softmax(lprobs / self.args.rerank_temp)
+        probs = softmax(lprobs / self.rerank_temp)
         rerank_scores = np.array(self.rerank_fn(hypos, probs))
 
         return rerank_scores.tolist()

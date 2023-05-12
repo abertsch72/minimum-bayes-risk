@@ -6,6 +6,7 @@
     "configurations": [
 
 
+
         {
             "name": "Python: Current File",
             "type": "python",
@@ -15,6 +16,20 @@
             "justMyCode": false,
             "python.envFile": "${workspaceFolder}/.env",
             "args": [
+            ],
+        },
+
+        {
+            "name": "pipeline",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/mbr_pipeline/entrypoint.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "python.envFile": "${workspaceFolder}/.env",
+            "args": [
+                "--config_file", "configs/config-test.json",
+                "--no_wandb"
             ],
         },
         {

@@ -14,6 +14,8 @@ except:
 from rouge_score import rouge_scorer
 from sacrebleu import sentence_chrf
 import numpy as np
+from rouge_score import tokenize
+
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -68,10 +70,9 @@ def rescore_rouge(topk_hypos, probs, rouge, eps=1e-4):
     
     k = len(topk_hypos)
     sim_matrix = np.ones((k, k))
-    tokens = [rouge._tokenizer.tokenize(h) for h in topk_hypos]
     for i in range(k):
         for j in range(i+1, k):
-            pair_scores = rouge.score(tokens[i], tokens[j], pretokenized=True)
+            pair_scores = rouge.score(topk_hypos[i], topk_hypos[j]) 
             geo_mean = 1.0
             for score in pair_scores.values():
                 geo_mean *= (score.fmeasure + eps)
