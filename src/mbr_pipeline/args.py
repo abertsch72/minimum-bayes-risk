@@ -55,6 +55,7 @@ class Args:
                 ))
         start_index: int = 0
         end_index: int = -1
+        shuffle: Optional[bool] = field(default=False)
 
     @dataclass_json
     @dataclass

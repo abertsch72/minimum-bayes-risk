@@ -20,7 +20,7 @@ from src.mbr_pipeline.list_gen.lattice_sample import lattice_sample_k
 
 def pipeline(args):
     # using PipelineArgs:
-    random.seed(args.PipelineArgs.seed)
+    random.seed(args.pipeline.seed)
 
     if args.pipeline.wandb: 
         wandb.init(entity="gormleylab", project="lattice-decoding", name=args.pipeline.run_name, group=args.pipeline.wandb_group, config=args.to_dict())
@@ -31,7 +31,7 @@ def pipeline(args):
 
     # using DatasetArgs:
     # get dataset
-    dataset = get_dataset(**args.dataset.__dict__)
+    dataset = get_dataset(**args.dataset.__dict__, seed=args.pipeline.seed)
 
     def get_lattices(lattice_dir: str):
         # check if the lattices exist
