@@ -1,14 +1,23 @@
 from datasets import load_dataset
+from typing import Optional
 
 from src.mbr_pipeline.args import Args
 import src.mbr_pipeline.args as args
 
 DatasetArgs = Args.DatasetArgs
 
-def get_dataset(dataset: DatasetArgs.SupportedDataset, split: DatasetArgs.DataSplit, end_index=-1, start_index=0, shuffle=False, seed=1):
+
+def get_dataset(
+    dataset: DatasetArgs.SupportedDataset,
+    split: DatasetArgs.DataSplit,
+    end_index=-1,
+    start_index=0,
+    shuffle=False,
+    seed=1,
+):
     full_data = load_dataset(*dataset.value, split=split.value)
     # TODO: move input/output under standardized names
-    
+
     match dataset.name:
         case DatasetArgs.SupportedDataset.samsum.name:
             full_data = full_data.rename_column("dialogue", "input")
@@ -16,6 +25,12 @@ def get_dataset(dataset: DatasetArgs.SupportedDataset, split: DatasetArgs.DataSp
         case DatasetArgs.SupportedDataset.cnndm.name:
             full_data = full_data.rename_column("article", "input")
             full_data = full_data.rename_column("highlights", "output")
+        case DatasetArgs.SupportedDataset.xsum.name:
+            full_data = full_data.rename_column("document", "input")
+            full_data = full_data.rename_column("summary", "output")
+
+    if shuffle:
+        full_data = full_data.shuffle(seed=seed)
 
     if shuffle:
         full_data = full_data.shuffle(seed=seed)
@@ -27,9 +42,14 @@ def get_dataset(dataset: DatasetArgs.SupportedDataset, split: DatasetArgs.DataSp
     else:
         return full_data
 
+
 def test():
-    args = DatasetArgs(dataset=DatasetArgs.SupportedDataset.samsum, split=DatasetArgs.DataSplit.test, end_index=351)
+    args = DatasetArgs(
+        dataset=DatasetArgs.SupportedDataset.samsum,
+        split=DatasetArgs.DataSplit.test,
+        end_index=351,
+    )
     print(get_dataset(**args.__dict__))
 
 
-#test()
+# test()

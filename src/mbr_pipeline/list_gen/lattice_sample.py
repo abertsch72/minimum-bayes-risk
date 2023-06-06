@@ -1,19 +1,11 @@
-import os
-from mbr_pipeline.args import get_parser
-from lattice import Lattice
-import numpy as np
-from transformers import AutoTokenizer
 import random
-from scipy.special import softmax, logsumexp
-import jsonlines
-from tqdm import tqdm
-import wandb
-from mbr_pipeline.utils.utils import set_seed
 
-from typing import Text
+import numpy as np
+from mbr_pipeline.list_gen.lattice import Lattice
+from scipy.special import logsumexp, softmax
 
 
-def sample_path(lattice: Lattice, sample_uniform=False, max_len=float('inf'), temp=1.0):
+def sample_path(lattice: Lattice, sample_uniform=False, max_len=float("inf"), temp=1.0):
     path = [lattice.sos]
     total_lprob = 0.0
     while path[-1] not in lattice.eos_set and len(path) < max_len:
@@ -36,19 +28,29 @@ def sample_path(lattice: Lattice, sample_uniform=False, max_len=float('inf'), te
     return path, total_lprob
 
 
-def lattice_sample_k(lattice, tokenizer, num_seqs, output, sample_uniform=False, max_len=float('inf'), 
-             no_repeats=False, lattice_score_temp=1.0):
-    topk_hypos = dict()
+def lattice_sample_k(
+    lattice,
+    tokenizer,
+    num_seqs,
+    output,
+    max_length=float("inf"),
+    sample_uniform=False,
+    no_repeats=False,
+    lattice_score_temp=1.0,
+):
+    topk_hypos = {}
     count = 0
-    
-    gold = output.reference,
+
+    gold = output.reference
     id = output.doc_id
     while count < num_seqs:
-        path, hypo_lprob = sample_path(lattice, sample_uniform, max_len, lattice_score_temp)
+        path, hypo_lprob = sample_path(
+            lattice, sample_uniform, max_length, lattice_score_temp
+        )
         hypo = tokenizer.decode(lattice.get_path_tokens(path), skip_special_tokens=True)
 
         hypo_hash = hash(hypo)
-        if hypo_hash in topk_hypos: # hopefully hash collisions don't happen
+        if hypo_hash in topk_hypos:  # hopefully hash collisions don't happen
             if no_repeats:
                 continue
             _, old_lprob = topk_hypos[hypo_hash]
@@ -57,16 +59,17 @@ def lattice_sample_k(lattice, tokenizer, num_seqs, output, sample_uniform=False,
             topk_hypos[hypo_hash] = (hypo, hypo_lprob)
         count += 1
 
-    hypos = [v[0] for v in topk_hypos]
-    lprobs = [v[1] for v in topk_hypos]
+    hypos = [v[0] for v in topk_hypos.values()]
+    lprobs = [v[1] for v in topk_hypos.values()]
 
     num_unique = len(set(hypos))
-    return {"gold": gold,
+    return {
+        "gold": gold,
         "id": id,
         "hypos": hypos,
         "lprobs": lprobs,
-        "num_unique": num_unique
-        }
+        "num_unique": num_unique,
+    }
 
 
 """
