@@ -1,8 +1,6 @@
 from datasets import load_dataset
-from typing import Optional
 
 from src.mbr_pipeline.args import Args
-import src.mbr_pipeline.args as args
 
 DatasetArgs = Args.DatasetArgs
 
@@ -28,9 +26,6 @@ def get_dataset(
         case DatasetArgs.SupportedDataset.xsum.name:
             full_data = full_data.rename_column("document", "input")
             full_data = full_data.rename_column("summary", "output")
-
-    if shuffle:
-        full_data = full_data.shuffle(seed=seed)
 
     if shuffle:
         full_data = full_data.shuffle(seed=seed)

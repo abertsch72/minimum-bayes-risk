@@ -1,28 +1,31 @@
-from typing import Text
-from dataclasses import dataclass
+import os
 import random
 from argparse import ArgumentParser
-import os
 
-from tqdm import tqdm
-import wandb
-import torch
-from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 import jsonlines
+import numpy as np
+import torch
+from tqdm import tqdm
+from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 
-from src.mbr_pipeline.utils.choose_dataset import get_dataset
+import wandb
 from src.mbr_pipeline.args import Args, load_args
-from src.mbr_pipeline.list_gen.sample import SamplingMethods, listgen
 from src.mbr_pipeline.list_eval.evaluate import Metrics
-from src.mbr_pipeline.reranking.rerank import Reranker
 from src.mbr_pipeline.list_gen.lattice import Lattice
-from src.mbr_pipeline.list_gen.lattice_sample import lattice_sample_k
 from src.mbr_pipeline.list_gen.lattice_mbr import decode_hypos_from_lattice
+from src.mbr_pipeline.list_gen.lattice_sample import lattice_sample_k
+from src.mbr_pipeline.list_gen.sample import SamplingMethods, listgen
+from src.mbr_pipeline.reranking.rerank import Reranker
+from src.mbr_pipeline.utils.choose_dataset import get_dataset
 
 
 def pipeline(args):
     # using PipelineArgs:
+    
+    # fix all the seeds
     random.seed(args.pipeline.seed)
+    np.random.seed(args.pipeline.seed)
+    torch.random.manual_seed(args.pipeline.seed)
 
     if args.pipeline.wandb:
         wandb.init(
