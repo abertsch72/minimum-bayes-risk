@@ -5,17 +5,15 @@ https://github.com/suzgunmirac/crowd-sampling/blob/main/run_mbrd.py
 
 import argparse
 import json
-from collections import Counter
-
-import numpy as np
-import datasets
-from tqdm import tqdm
-import torch
-
 import os
 import pickle
-
 import sys
+from collections import Counter
+
+import datasets
+import numpy as np
+import torch
+from tqdm import tqdm
 
 sys.path.append("./")
 sys.path.append("./src/")

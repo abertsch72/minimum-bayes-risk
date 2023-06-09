@@ -1,13 +1,18 @@
-
-import sys
-import logging
-from datasets import load_dataset
 import argparse
-import torch
-from transformers import BartTokenizer, BartForConditionalGeneration
-from transformers import AutoConfig, AutoModelForSeq2SeqLM,AutoTokenizer
+import logging
 import os
 import random
+import sys
+
+import torch
+from datasets import load_dataset
+from transformers import (
+    AutoConfig,
+    AutoModelForSeq2SeqLM,
+    AutoTokenizer,
+    BartForConditionalGeneration,
+    BartTokenizer,
+)
 
 random.seed(2021)
 tokenizer = None
@@ -15,27 +20,31 @@ model = None
 data_set = None
 args = None
 dec_prefix = None
-def render_address(root = 'output') ->dict:
+
+
+def render_address(root="output") -> dict:
     """
     create name of subdirectories
     """
     d = {
-        'data':os.path.join(root, 'cnndm-zip'),
-        'html':os.path.join(root, 'html'),
-        'stat':os.path.join(root, 'stat'),
-        'text':os.path.join(root, 'text'),
-        'table':os.path.join(root, 'table'),
+        "data": os.path.join(root, "cnndm-zip"),
+        "html": os.path.join(root, "html"),
+        "stat": os.path.join(root, "stat"),
+        "text": os.path.join(root, "text"),
+        "table": os.path.join(root, "table"),
     }
     return d
+
+
 dict_io = render_address()
 
 
-def read_mt_data(path='/mnt/data1/jcxu/lattice-sum/mt-data/use', name='zh-en'):
+def read_mt_data(path="/mnt/data1/jcxu/lattice-sum/mt-data/use", name="zh-en"):
     src = name[:2]
     tgt = name[3:]
-    with open(os.path.join(path, f"{name}.{src}"), 'r') as fd:
+    with open(os.path.join(path, f"{name}.{src}"), "r") as fd:
         slines = fd.read().splitlines()
-    with open(os.path.join(path, f"{name}.{tgt}"), 'r') as fd:
+    with open(os.path.join(path, f"{name}.{tgt}"), "r") as fd:
         tlines = fd.read().splitlines()
     print(slines[:5])
     print(tlines[:5])
@@ -46,67 +55,85 @@ def read_mt_data(path='/mnt/data1/jcxu/lattice-sum/mt-data/use', name='zh-en'):
 # MODEL_CACHE = '/mnt/data1/jcxu/cache'
 
 
-def setup_model(task='sum', dataset='xsum', model_name='facebook/bart-large-xsum', device_name='cpu', cache_dir=None):
+def setup_model(
+    task="sum",
+    dataset="xsum",
+    model_name="facebook/bart-large-xsum",
+    device_name="cpu",
+    cache_dir=None,
+):
     global tokenizer, model, data_set, dec_prefix
     device = torch.device(device_name)
     print(model_name)
-    config = AutoConfig.from_pretrained(model_name, local_files_only=True)
-    model = AutoModelForSeq2SeqLM.from_pretrained(model_name, local_files_only=True)
-    tokenizer = AutoTokenizer.from_pretrained(model_name, padding=True, truncation=True, max_length=1024, local_files_only=True)
+    config = AutoConfig.from_pretrained(model_name)
+    model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
+    tokenizer = AutoTokenizer.from_pretrained(
+        model_name,
+        padding=True,
+        truncation=True,
+        max_length=1024,
+    )
 
-    if task == 'custom':
+    if task == "custom":
         # you need to store the input under the path_dataset folder
         dec_prefix = [tokenizer.eos_token_id]
-        with open(os.path.join(dataset, 'input.txt'), 'r') as fd:
+        with open(os.path.join(dataset, "input.txt"), "r") as fd:
             slines = fd.read().splitlines()
-        with open(os.path.join(dataset, 'output.txt'), 'r') as fd:
+        with open(os.path.join(dataset, "output.txt"), "r") as fd:
             tlines = fd.read().splitlines()
         dataset = zip(slines, tlines)
-    elif task == 'sum':
-        logging.info('Loading dataset')
-        if dataset == 'xsum':
-            dataset = load_dataset("xsum", split='validation', 
-                                   cache_dir=cache_dir)
-        elif dataset == 'cnndm':
+    elif task == "sum":
+        logging.info("Loading dataset")
+        if dataset == "xsum":
+            dataset = load_dataset("xsum", split="validation", cache_dir=cache_dir)
+        elif dataset == "cnndm":
             # raise NotImplementedError("not supported")
-            dataset = load_dataset("ccdv/cnn_dailymail", '3.0.0', split='validation', 
-                                   cache_dir=cache_dir)
+            dataset = load_dataset(
+                "ccdv/cnn_dailymail", "3.0.0", split="validation", cache_dir=cache_dir
+            )
             print("CNNDM mean token in ref 56")
         dec_prefix = [tokenizer.eos_token_id]
-    elif task == 'mt1n':
-        from transformers import MBartForConditionalGeneration, MBart50TokenizerFast
+    elif task == "mt1n":
+        from transformers import MBart50TokenizerFast, MBartForConditionalGeneration
+
         model = MBartForConditionalGeneration.from_pretrained(
-            "facebook/mbart-large-50-one-to-many-mmt")
+            "facebook/mbart-large-50-one-to-many-mmt"
+        )
         tokenizer = MBart50TokenizerFast.from_pretrained(
-            "facebook/mbart-large-50-one-to-many-mmt", src_lang="en_XX")
-        assert dataset.startswith('en')
+            "facebook/mbart-large-50-one-to-many-mmt", src_lang="en_XX"
+        )
+        assert dataset.startswith("en")
         tgt_lang = dataset[3:]
         dataset = read_mt_data(name=dataset)
 
         from transformers.models.mbart.tokenization_mbart import FAIRSEQ_LANGUAGE_CODES
+
         match = [x for x in FAIRSEQ_LANGUAGE_CODES if x.startswith(tgt_lang)]
         assert len(match) == 1
         lang = match[0]
         logging.info(f"Lang: {lang}")
         dec_prefix = [tokenizer.eos_token_id, tokenizer.lang_code_to_id[lang]]
         logging.info(f"{tokenizer.decode(dec_prefix)}")
-    elif task == 'mtn1':
-        from transformers import MBartForConditionalGeneration, MBart50TokenizerFast
+    elif task == "mtn1":
+        from transformers import MBart50TokenizerFast, MBartForConditionalGeneration
+
         model = MBartForConditionalGeneration.from_pretrained(
-            "facebook/mbart-large-50-many-to-one-mmt", )
+            "facebook/mbart-large-50-many-to-one-mmt",
+        )
         tokenizer = MBart50TokenizerFast.from_pretrained(
-            "facebook/mbart-large-50-many-to-one-mmt")
+            "facebook/mbart-large-50-many-to-one-mmt"
+        )
         # dataset should be like "xx-en"
-        assert dataset.endswith('-en')
+        assert dataset.endswith("-en")
         src_lang = dataset[:2]
         from transformers.models.mbart.tokenization_mbart import FAIRSEQ_LANGUAGE_CODES
+
         match = [x for x in FAIRSEQ_LANGUAGE_CODES if x.startswith(src_lang)]
         assert len(match) == 1
         lang = match[0]
         tokenizer.src_lang = lang
         dataset = read_mt_data(name=dataset)
-        dec_prefix = [tokenizer.eos_token_id,
-                      tokenizer.lang_code_to_id["en_XX"]]
+        dec_prefix = [tokenizer.eos_token_id, tokenizer.lang_code_to_id["en_XX"]]
         logging.info(f"{tokenizer.decode(dec_prefix)}")
     model = model.to(device)
     data_set = dataset
@@ -117,16 +144,17 @@ def setup_model(task='sum', dataset='xsum', model_name='facebook/bart-large-xsum
 def str2bool(v):
     if isinstance(v, bool):
         return v
-    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+    if v.lower() in ("yes", "true", "t", "y", "1"):
         return True
-    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+    elif v.lower() in ("no", "false", "f", "n", "0"):
         return False
     else:
-        raise argparse.ArgumentTypeError('Boolean value expected.')
+        raise argparse.ArgumentTypeError("Boolean value expected.")
 
 
 def setup_logger(name):
     import datetime
+
     now_time = datetime.datetime.now()
     logname = f"logs/{name}{str(now_time)[:16]}.txt"
     logger = logging.getLogger()
@@ -134,11 +162,11 @@ def setup_logger(name):
 
     handler = logging.StreamHandler(sys.stdout)
     handler.setLevel(logging.INFO)
-    formatter = logging.Formatter('- %(message)s')
+    formatter = logging.Formatter("- %(message)s")
     handler.setFormatter(formatter)
     logger.addHandler(handler)
 
-    file_handler = logging.FileHandler(logname, 'w')
+    file_handler = logging.FileHandler(logname, "w")
     file_handler.setLevel(logging.INFO)
     file_handler.setFormatter(formatter)
 
@@ -148,100 +176,219 @@ def setup_logger(name):
 
 def process_arg():
     parser = argparse.ArgumentParser()
-    parser.add_argument('-device', type=str, default='cpu', help='name of device, eg. cuda:0 or cpu')
-    parser.add_argument("-model", type=str, choices=[
-                        'dbs', 'bs', 'greedy', 'topp', 'temp', 'bs_recom', 'sample_recom', 'bfs','bfs_recom'], default='bs')
-    parser.add_argument('-beam_size', type=int, default=15)
-    parser.add_argument('-nexample', type=int, default=100)
-    parser.add_argument('-startexample', type=int, default=0)
+    parser.add_argument(
+        "-device", type=str, default="cpu", help="name of device, eg. cuda:0 or cpu"
+    )
+    parser.add_argument(
+        "-model",
+        type=str,
+        choices=[
+            "dbs",
+            "bs",
+            "greedy",
+            "topp",
+            "temp",
+            "bs_recom",
+            "sample_recom",
+            "bfs",
+            "bfs_recom",
+        ],
+        default="bs",
+    )
+    parser.add_argument("-beam_size", type=int, default=15)
+    parser.add_argument("-nexample", type=int, default=100)
+    parser.add_argument("-startexample", type=int, default=0)
 
-    parser.add_argument('-task', type=str, default='sum',
-                        choices=['sum', 'mt1n', 'mtn1', 'custom'], help='for custom, you need to define your data IO')
-    parser.add_argument('-dataset', default='xsum', type=str)
-    parser.add_argument('-hf_model_name', default='facebook/bart-large-xsum', type=str)
+    parser.add_argument(
+        "-task",
+        type=str,
+        default="sum",
+        choices=["sum", "mt1n", "mtn1", "custom"],
+        help="for custom, you need to define your data IO",
+    )
+    parser.add_argument("-dataset", default="xsum", type=str)
+    parser.add_argument("-seed", default=2021, type=int)
+    parser.add_argument("-hf_model_name", default="facebook/bart-large-xsum", type=str)
 
-    parser.add_argument('-path_output', type=str, default='custom_output')
+    parser.add_argument("-path_output", type=str, default="custom_output")
 
-    parser.add_argument('-top_p', type=float, default=0.9)
-    parser.add_argument('-temp', type=float, default=1.5)
-    parser.add_argument('-beam_group', type=int, default=5)
-    parser.add_argument('-hamming_penalty', type=float, default=0.0)
-    
-    parser.add_argument('-extra_steps', type=int, default=10)
-    parser.add_argument('-min_len', type=int, default=13)
-    parser.add_argument('-max_len', type=int, default=35)
-    parser.add_argument('-num_beam_hyps_to_keep', type=int, default=100)
-    parser.add_argument('-ngram_suffix', type=int, default=4)
-    parser.add_argument('-len_diff', type=int, default=5)
+    parser.add_argument("-top_p", type=float, default=0.9)
+    parser.add_argument("-temp", type=float, default=1.5)
+    parser.add_argument("-beam_group", type=int, default=5)
+    parser.add_argument("-hamming_penalty", type=float, default=0.0)
 
-    parser.add_argument('-k_best', type=int, default=5, help='Max number of next step prediction considered. LM will yield prob of vocab_size, and we only consider top_k_best and put them in the search frontier.')
-    parser.add_argument('-avg_score', type=float, default=-1,
-                        help='average model score coefficient. typical numbers like 0.6 or 0.8 or 0.9')
+    parser.add_argument("-extra_steps", type=int, default=10)
+    parser.add_argument("-min_len", type=int, default=13)
+    parser.add_argument("-max_len", type=int, default=35)
+    parser.add_argument("-num_beam_hyps_to_keep", type=int, default=100)
+    parser.add_argument("-ngram_suffix", type=int, default=4)
+    parser.add_argument("-len_diff", type=int, default=5)
 
-    parser.add_argument('-use_heu', type=str2bool, nargs='?',
-                        const=True, default=False, help='our model: do we use heuristic')
-    parser.add_argument('-post', type=str2bool, nargs='?',
-                        const=True, default=False, help='our model: enforce the model to generate after exploration')
-    parser.add_argument('-dfs_expand', type=str2bool, nargs='?',
-                        const=True, default=False, help='our model: always generate till the end once touch a node')
-    parser.add_argument('-post_ratio', type=float, default=0.4,
-                        help='our model: ratio of resource allocation')
-    parser.add_argument('-temperature_sample', default=False, action="store_true", help="whether to use temperature sampling instead of best match in search")
-    parser.add_argument('-T', type=float, default=1.0, help="temperature for temperature sampling; crowd sampling recommends 0.7; use default (1.0) for non-temp-sampling methods")
+    parser.add_argument(
+        "-k_best",
+        type=int,
+        default=5,
+        help="Max number of next step prediction considered. LM will yield prob of vocab_size, and we only consider top_k_best and put them in the search frontier.",
+    )
+    parser.add_argument(
+        "-avg_score",
+        type=float,
+        default=-1,
+        help="average model score coefficient. typical numbers like 0.6 or 0.8 or 0.9",
+    )
+
+    parser.add_argument(
+        "-use_heu",
+        type=str2bool,
+        nargs="?",
+        const=True,
+        default=False,
+        help="our model: do we use heuristic",
+    )
+    parser.add_argument(
+        "-post",
+        type=str2bool,
+        nargs="?",
+        const=True,
+        default=False,
+        help="our model: enforce the model to generate after exploration",
+    )
+    parser.add_argument(
+        "-dfs_expand",
+        type=str2bool,
+        nargs="?",
+        const=True,
+        default=False,
+        help="our model: always generate till the end once touch a node",
+    )
+    parser.add_argument(
+        "-post_ratio",
+        type=float,
+        default=0.4,
+        help="our model: ratio of resource allocation",
+    )
+    parser.add_argument(
+        "-temperature_sample",
+        default=False,
+        action="store_true",
+        help="whether to use temperature sampling instead of best match in search",
+    )
+    parser.add_argument(
+        "-T",
+        type=float,
+        default=1.0,
+        help="temperature for temperature sampling; crowd sampling recommends 0.7; use default (1.0) for non-temp-sampling methods",
+    )
 
     # start of depricated
-    parser.add_argument('-heu_seq_score', type=float, default=0.0,
-                        help='Heuristic: consider the score of previously generated sequence. this is the weight term for that')
-    parser.add_argument('-heu_seq_score_len_rwd', type=float,
-                        default=0.0, help='Length reward term in heu_seq_score.')
-    parser.add_argument('-heu_pos', type=float, default=0.0,
-                        help='Heuristic for position bias')
-    parser.add_argument('-heu_ent', type=float, default=0.5,
-                        help='Heuristic for entropy.')
-    parser.add_argument('-heu_word', type=float, default=0.0,
-                        help='Heuristic for good token.')
+    parser.add_argument(
+        "-heu_seq_score",
+        type=float,
+        default=0.0,
+        help="Heuristic: consider the score of previously generated sequence. this is the weight term for that",
+    )
+    parser.add_argument(
+        "-heu_seq_score_len_rwd",
+        type=float,
+        default=0.0,
+        help="Length reward term in heu_seq_score.",
+    )
+    parser.add_argument(
+        "-heu_pos", type=float, default=0.0, help="Heuristic for position bias"
+    )
+    parser.add_argument(
+        "-heu_ent", type=float, default=0.5, help="Heuristic for entropy."
+    )
+    parser.add_argument(
+        "-heu_word", type=float, default=0.0, help="Heuristic for good token."
+    )
     # end of depricated
-    parser.add_argument('-merge', type=str, default='zip',
-                        choices=['zip', 'rcb','none'])
+    parser.add_argument(
+        "-merge", type=str, default="zip", choices=["zip", "rcb", "none"]
+    )
 
     # Lattice MBR arguments
-    parser.add_argument('--outfile', type=str, default=None, 
-                           help='file to save results to')
-    mbr_group = parser.add_argument_group('mbr', 'mbr args')
-    mbr_group.add_argument('--lattice_metric', type=str, default=None,
-                           help='metric for MBR approximation in lattice',
-                           choices=['rouge1', 'rouge2', 'match1', 'match2', 'exact1'])
-    mbr_group.add_argument('--uniform', action='store_true', default=False,
-                           help='use uniform scoring instead of weighted lattice scores')
-    mbr_group.add_argument('--count_aware', action='store_true',
-                           help='use count-aware ROUGE approximation')
-    mbr_group.add_argument('--length_alpha', type=float, default=0.0,
-                           help='length smoothing for mean length calculation, ' + \
-                                'i.e. optionally divide \hat{p}(|h| = L) by L**alpha')
-    mbr_group.add_argument('--match_uniform', action='store_true', default=False,
-                           help='use uniform scoring for expected match calculation only')
-    mbr_group.add_argument('--d_length', type=int, default=float('inf'),
-                           help='min/max length deviation from mean')
+    parser.add_argument(
+        "--outfile", type=str, default=None, help="file to save results to"
+    )
+    mbr_group = parser.add_argument_group("mbr", "mbr args")
+    mbr_group.add_argument(
+        "--lattice_metric",
+        type=str,
+        default=None,
+        help="metric for MBR approximation in lattice",
+        choices=["rouge1", "rouge2", "match1", "match2", "exact1"],
+    )
+    mbr_group.add_argument(
+        "--uniform",
+        action="store_true",
+        default=False,
+        help="use uniform scoring instead of weighted lattice scores",
+    )
+    mbr_group.add_argument(
+        "--count_aware", action="store_true", help="use count-aware ROUGE approximation"
+    )
+    mbr_group.add_argument(
+        "--length_alpha",
+        type=float,
+        default=0.0,
+        help="length smoothing for mean length calculation, "
+        + "i.e. optionally divide \hat{p}(|h| = L) by L**alpha",
+    )
+    mbr_group.add_argument(
+        "--match_uniform",
+        action="store_true",
+        default=False,
+        help="use uniform scoring for expected match calculation only",
+    )
+    mbr_group.add_argument(
+        "--d_length",
+        type=int,
+        default=float("inf"),
+        help="min/max length deviation from mean",
+    )
 
-    mbr_group.add_argument('--mean_override', type=int, default=-1,
-                           help='value to override the mean with (-1 means use the actual mean)')
+    mbr_group.add_argument(
+        "--mean_override",
+        type=int,
+        default=-1,
+        help="value to override the mean with (-1 means use the actual mean)",
+    )
 
-    mbr_group.add_argument('--target_length', type=int, default=None,
-                           help='length to restrict evidence to (exact)')
+    mbr_group.add_argument(
+        "--target_length",
+        type=int,
+        default=None,
+        help="length to restrict evidence to (exact)",
+    )
 
-    mbr_group.add_argument('--length_deviation', type=int, default=0,
-                           help='allowed deviation from goal evidence set length)')
+    mbr_group.add_argument(
+        "--length_deviation",
+        type=int,
+        default=0,
+        help="allowed deviation from goal evidence set length)",
+    )
 
     # Arguments for second stage MBR re-ranking
-    mbr_group.add_argument('--lattice_topk', type=int, default=1,
-                           help='number of top gain hypotheses to track in lattice')
-    mbr_group.add_argument('--rerank_topk', type=int, default=-1,
-                           help='number of hypotheses for second-stage MBR reranking.' + \
-                                'defaults to same value as lattice_topk')
-    mbr_group.add_argument('--rerank', type=str, default='2',
-                           help='ROUGE-n for top-k reranking')
-    mbr_group.add_argument('--run_name', type=str, default='',
-                           help='name for WANDB run')
+    mbr_group.add_argument(
+        "--lattice_topk",
+        type=int,
+        default=1,
+        help="number of top gain hypotheses to track in lattice",
+    )
+    mbr_group.add_argument(
+        "--rerank_topk",
+        type=int,
+        default=-1,
+        help="number of hypotheses for second-stage MBR reranking."
+        + "defaults to same value as lattice_topk",
+    )
+    mbr_group.add_argument(
+        "--rerank", type=str, default="2", help="ROUGE-n for top-k reranking"
+    )
+    mbr_group.add_argument(
+        "--run_name", type=str, default="", help="name for WANDB run"
+    )
 
     global args
     global grouped_args
@@ -249,8 +396,7 @@ def process_arg():
     args, _ = parser.parse_known_args()
     grouped_args = {}
     for group in parser._action_groups:
-        group_dict={a.dest:getattr(args,a.dest,None) for a in group._group_actions}
-        grouped_args[group.title]=argparse.Namespace(**group_dict)
+        group_dict = {a.dest: getattr(args, a.dest, None) for a in group._group_actions}
+        grouped_args[group.title] = argparse.Namespace(**group_dict)
 
     return args, grouped_args
-

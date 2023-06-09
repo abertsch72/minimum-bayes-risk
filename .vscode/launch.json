@@ -57,14 +57,14 @@
             "args": [
                 "--lattice_metric", "rouge1",
                 "--d_length", "4",
-                "--lattice_topk", "20", 
+                "--lattice_topk", "20",
                 "--rerank_rouge", "1",
-                "--match_uniform", 
+                "--match_uniform",
                 "--run_name", "debugging",
                 "--target_length", "20",
             ],
         },
-        
+
         {
             "name": "summ xsum",
             "type": "python",

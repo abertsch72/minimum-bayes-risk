@@ -1,9 +1,10 @@
-import statistics
 import math
+import statistics
 from collections import defaultdict
-from src.recom_search.model.beam_node_ez import BeamNodeEz
-from src.recom_search.model.beam_node_full  import BeamNodeFull
+
 from src.recom_search.model.beam_node import BeamNode
+from src.recom_search.model.beam_node_ez import BeamNodeEz
+from src.recom_search.model.beam_node_full import BeamNodeFull
 
 
 def convert_seq_score(seq, inp_score):
@@ -16,7 +17,7 @@ def convert_seq_score(seq, inp_score):
         tmp = []
         for t in range(1, seq_len):
             token_idx = seq[b][t]
-            score = inp_score[t-1][b][token_idx]
+            score = inp_score[t - 1][b][token_idx]
             tmp.append(score)
         converted_scores.append(tmp)
     return converted_scores
@@ -40,8 +41,6 @@ def truncate_sequence(seq):
     return trunc_seq
 
 
-
-
 def construct_trees(seq):
     # construct the graph/tree from a group of outputs
     d = {}
@@ -50,7 +49,6 @@ def construct_trees(seq):
     for s in seq:
         prev_tokens = []
         for x in s:
-
             key = "_".join(prev_tokens + [str(x)])
             if key in d:
                 prev_tokens.append(str(x))
@@ -84,4 +82,3 @@ def construct_trees(seq):
     print(quants)
     """
     return ends
-

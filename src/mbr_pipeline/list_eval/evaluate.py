@@ -1,19 +1,18 @@
-from rouge_score import rouge_scorer
-import sacrebleu
+from collections import defaultdict
+
+import jsonlines
+import numpy as np
+from scipy.stats import permutation_test, spearmanr
+from tqdm import tqdm
+
 from src.mbr_pipeline.list_eval.scorers import (
-    Scorer,
     Score,
-    self_bleu,
+    Scorer,
     rescore_bartscore,
     rescore_bertscore,
     rescore_rouge,
+    self_bleu,
 )
-from collections import defaultdict
-import numpy as np
-import jsonlines
-from tqdm import tqdm
-from scipy.special import softmax
-from scipy.stats import spearmanr, permutation_test
 
 
 class C:
@@ -38,15 +37,15 @@ class Metrics:
         self.zero_score = Score({m: 0 for m in eval_metrics})
         self.metrics = defaultdict(lambda: [])
 
-    def output(self):
-        def average(seq):
-            if len(seq) == 0:
-                return 0
-            start = 0
-            if isinstance(seq[0], Score):
-                start = self.zero_score
-            return sum(seq, start=start) / len(seq)
+    def average(self, seq):
+        if len(seq) == 0:
+            return 0
+        start = 0
+        if isinstance(seq[0], Score):
+            start = self.zero_score
+        return sum(seq, start=start) / len(seq)
 
+    def output(self):
         table_keys = [k for k, v in self.metrics.items() if isinstance(v[0], Score)]
         sorted_cols = sorted(self.metrics[table_keys[0]][0].score_dict)
         longest_key = max(len(k) for k in self.metrics)
@@ -57,7 +56,7 @@ class Metrics:
         print(header)
         output_dict = {}
         for key in table_keys:
-            avg_metric = average(self.metrics[key])
+            avg_metric = self.average(self.metrics[key])
             if sum(avg_metric.score_dict.values()) == 0.0:
                 continue
             output_dict[key] = str(avg_metric)
@@ -67,12 +66,25 @@ class Metrics:
                 print(f"{key.ljust(longest_key)} | {avg_metric}")
         print()
 
-        for key in self.metrics.keys():
+        for key, value in self.metrics.items():
             if key in table_keys:
                 continue
-            output_dict[key] = str(average(self.metrics[key]))
-            print(f"{key.ljust(longest_key)} | " + f"{average(self.metrics[key]):.2f}".rjust(6))
-        return output_dict
+            print(
+                f"{key.ljust(longest_key)} | " + f"{self.average(value):.2f}".rjust(6)
+            )
+
+    def to_dict(self):
+        result = {}
+        for key, value in self.metrics.items():
+            avg_metric = self.average(value)
+            if isinstance(avg_metric, Score):
+                if sum(avg_metric.score_dict.values()) == 0.0:
+                    continue
+                for k, v in avg_metric.score_dict.items():
+                    result[f"{key}_{k}"] = v
+            else:
+                result[key] = avg_metric
+        return result
 
     def geomean(self, score):
         eps = 1e-4
@@ -80,7 +92,7 @@ class Metrics:
         geo_mean = 1
         for v in score.values():
             geo_mean *= v + eps
-        geo_mean **= 1 / len(self.rerank_metrics)
+        geo_mean **= 1 / len(self.eval_metrics)
 
         return geo_mean
 
@@ -107,7 +119,12 @@ class Metrics:
             top_rerank_key = f"top_rerank_{rerank_type}"
             corr_key = f"corr_{rerank_type}"
             pvalue_key = f"pvalue_{rerank_type}"
-            if top_rerank_key in item and corr_key in item and pvalue_key in item:
+            if (
+                rerank_type != "lprobs"
+                and top_rerank_key in item
+                and corr_key in item
+                and pvalue_key in item
+            ):
                 max_rerank_score = item[top_rerank_key]
                 correlations = item[corr_key]
                 pvalues = item[pvalue_key]
@@ -115,7 +132,7 @@ class Metrics:
                 rerank_scores = (
                     item[f"rerank_scores_{rerank_type}"]
                     if rerank_type != "lprobs"
-                    else [-prob for prob in item["lprobs"]]
+                    else item["lprobs"]
                 )
                 max_rerank_idx = np.argmax(rerank_scores)
                 max_rerank_score = scores[max_rerank_idx].score_dict

@@ -1,15 +1,28 @@
-from typing import List
-from src.recom_search.model.beam_state import find_prefix
-from src.recom_search.model.beam_node import BeamNode
-from src.recom_search.model.util import gen_rand_id
-import random,math
-from src.recom_search.model.exec_setup import tokenizer
 import logging
+import math
+import random
+from typing import List
+
 import torch
+
+from src.recom_search.model.beam_node import BeamNode
+from src.recom_search.model.beam_state import find_prefix
+from src.recom_search.model.exec_setup import tokenizer
+from src.recom_search.model.util import gen_rand_id
+
 random.seed(2021)
 
+
 class BeamNodeEz(BeamNode):
-    def __init__(self, prob: float, token_idx: int, prev: List, prev_score: List, min_len: int = 10, finished: bool = False) -> None:
+    def __init__(
+        self,
+        prob: float,
+        token_idx: int,
+        prev: List,
+        prev_score: List,
+        min_len: int = 10,
+        finished: bool = False,
+    ) -> None:
         super().__init__(prob, token_idx, prev, prev_score, min_len, finished)
         self.get_canonical_path()
         assert self.all_token_idx
@@ -19,8 +32,6 @@ class BeamNodeEz(BeamNode):
 
     def get_repr(self):
         return self
-
-
 
     def get_antecedent(self):
         antecedents = []
@@ -39,7 +50,7 @@ class BeamNodeEz(BeamNode):
     def add_prev_node(self, node, score):
         """
         self: a b c d  a   f g
-        node: a b c d  x y 
+        node: a b c d  x y
         """
         # check if self is the ancedant node of "node"
         if self in node.get_antecedent() or self == node:
@@ -47,7 +58,6 @@ class BeamNodeEz(BeamNode):
 
         self.prev.append(node)
         self.prev_score.append(score)
-
 
     def visualization(self):
         nodes, edges = {}, {}
@@ -63,25 +73,21 @@ class BeamNodeEz(BeamNode):
 
             my_prev, my_prev_score = node.prev, node.prev_score
             for p, ps in zip(my_prev, my_prev_score):
-
-                edge_info = {
-                    'src': p.uid,
-                    'tgt': node.uid,
-                    'score': ps
-                }
+                edge_info = {"src": p.uid, "tgt": node.uid, "score": ps}
                 edges[f"{p.uid}_{node.uid}"] = edge_info
                 # edges.append(edge_info)
 
             nodes[node.uid] = {
-                'uid': node.uid,
-                'text': node.token_str,
-                'tok_idx':node.token_idx
+                "uid": node.uid,
+                "text": node.token_str,
+                "tok_idx": node.token_idx,
             }
             # nodes.append({'uid': node.uid,'text': node.token_str})
 
             prevs = node.prev
             for p in prevs:
                 dfs(p)
+
         dfs(self)
         return nodes, edges
 
@@ -100,13 +106,13 @@ class BeamNodeEz(BeamNode):
                 last_path_tokens = [x.token_idx for x in last_path]
                 cur_path_tokens = [x.token_idx for x in cur_path]
                 # order of last_path_tokens and cur_path_tokens: [root, ->, ...]
-                shared_prefix_len, _ = find_prefix(
-                    last_path_tokens, cur_path_tokens)
+                shared_prefix_len, _ = find_prefix(last_path_tokens, cur_path_tokens)
                 last = last_path_tokens[shared_prefix_len:][::-1]
                 newer = cur_path_tokens[shared_prefix_len:][::-1]
                 shared_tokens = last_path_tokens[:shared_prefix_len][::-1]
                 logging.info(
-                    f"\n======{tokenizer.decode(last)} || {tokenizer.decode(shared_tokens)} \n-----{tokenizer.decode(newer)} || {tokenizer.decode(shared_tokens)} ")
+                    f"\n======{tokenizer.decode(last)} || {tokenizer.decode(shared_tokens)} \n-----{tokenizer.decode(newer)} || {tokenizer.decode(shared_tokens)} "
+                )
                 recomb_units.append([last, newer])
                 seen[node.uid] = par_nodes
                 return
@@ -116,8 +122,7 @@ class BeamNodeEz(BeamNode):
                 dfs(p, par_nodes + [node])
 
         dfs(self, [])
-        logging.info(
-            f"There are {len(recomb_units)} recomb phrases in this case.")
+        logging.info(f"There are {len(recomb_units)} recomb phrases in this case.")
 
     def get_canonical_path(self):
         """
@@ -130,7 +135,7 @@ class BeamNodeEz(BeamNode):
             prev = prev[0]
             tokens.append(prev.token_idx)
             scores.append(prev.score)
-            prev = prev.prev        # update pointer
+            prev = prev.prev  # update pointer
         self.all_score = scores[::-1]
         self.all_token_idx = tokens[::-1]
         self.length = len(tokens)
@@ -143,7 +148,7 @@ class BeamNodeEz(BeamNode):
             out.append(prev.token_str)
             prev = prev.prev
         out = out[::-1]
-        return '<-'.join(out)
+        return "<-".join(out)
 
     def get_token_idx_as_input(self):
         tokens = self.all_token_idx
@@ -176,7 +181,6 @@ class BeamNodeEz(BeamNode):
             for p in prev:
                 token = p.token_idx
                 if token == last_target_token_idx:
-
                     new_prev += p.prev
 
             reversed_tokens.append(last_target_token_idx)

@@ -1,10 +1,9 @@
-import random
 import logging
 import random
 
-
 from src.recom_search.model.beam_node_ez import BeamNodeEz
 from src.recom_search.model.beam_node_full import BeamNodeFull
+
 
 def similarity_heuristic(a_tokens, b_tokens, ngram_suffix, len_diff) -> bool:
     if len(a_tokens) > ngram_suffix and len(b_tokens) > ngram_suffix:
@@ -25,7 +24,12 @@ def similarity_heuristic(a_tokens, b_tokens, ngram_suffix, len_diff) -> bool:
     return True
 
 
-def naive_merge(beam_par: BeamNodeFull, beam_drop: BeamNodeFull, doc_input_ids=None, ngram_suffix=None):
+def naive_merge(
+    beam_par: BeamNodeFull,
+    beam_drop: BeamNodeFull,
+    doc_input_ids=None,
+    ngram_suffix=None,
+):
     """
     beam_par is the node to keep, beam_drop is to "discard"
     our goal is to merge them into a larger lattice ending with beam_par.uid
@@ -45,7 +49,7 @@ def naive_merge(beam_par: BeamNodeFull, beam_drop: BeamNodeFull, doc_input_ids=N
     # go leftward to end of
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     ng = 2
     hash = HashedGen(ng)
     n1 = BeamNode(1, 1, [], [random.random()])
@@ -61,8 +65,9 @@ if __name__ == '__main__':
     n9 = BeamNode(1, 9, [n11], [random.random()])
     m7 = BeamNode(1, 7, [n9], [random.random()])
     n8 = BeamNode(1, 8, [n11], [random.random()])
-    m3 = BeamNode(1, 3, [m7, n11, n8], [random.random(),
-                                        random.random(), random.random()])
+    m3 = BeamNode(
+        1, 3, [m7, n11, n8], [random.random(), random.random(), random.random()]
+    )
     m4 = BeamNode(1, 4, [m3], [random.random()])
     m23 = BeamNode(1, 23, [m4], [random.random()])
     m24 = BeamNode(1, 24, [m23], [random.random()])

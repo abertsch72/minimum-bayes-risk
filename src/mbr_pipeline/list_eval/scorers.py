@@ -1,22 +1,20 @@
 import argparse
-from functools import lru_cache
-from collections import defaultdict
-from typing import Dict, List
-from numbers import Number
 import random
+from collections import defaultdict
+from functools import lru_cache
+from numbers import Number
+from typing import Dict, List
 
-import torch
 import datasets
+import torch
 
 try:
     from bart_score.bart_score import BARTScorer
 except ImportError as e:
     print("Unable to import bart_score.")
-from rouge_score import rouge_scorer
-from sacrebleu import sentence_chrf
 import numpy as np
-from rouge_score import tokenize
-
+from rouge_score import rouge_scorer, tokenize
+from sacrebleu import sentence_chrf
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -88,6 +86,7 @@ def rescore_rouge(topk_hypos, probs, rouge, eps=1e-4):
 
 
 import statistics
+
 from sacrebleu.metrics import BLEU
 
 bleu_scorer = BLEU(effective_order=True)

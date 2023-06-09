@@ -1,12 +1,12 @@
+import random
 from collections import defaultdict
 from typing import List
-import random
 
 random.seed(2021)
 import logging
 
 
-class HashObject():
+class HashObject:
     def __init__(self, ngram: int = 5) -> None:
         self.data = defaultdict(list)  # key: a_b_c: val: [uid_a, uid_b, uid_c]
         self.ngram = ngram
@@ -16,7 +16,7 @@ class HashObject():
         self.uid_map[uid] = node
 
     def const_key(self, token_ids: List[int]):
-        tokens = token_ids[-self.ngram:]
+        tokens = token_ids[-self.ngram :]
         token_str = [str(x) for x in tokens]
         k = "_".join(token_str)
         return k
@@ -89,8 +89,11 @@ class HashObject():
             return outputs
 
         all_probable_paths = dfs(par_node, 2)
-        all_probable_paths = [x + [new_node.token_idx]
-                              for x in all_probable_paths if len(x) == self.ngram - 1]
+        all_probable_paths = [
+            x + [new_node.token_idx]
+            for x in all_probable_paths
+            if len(x) == self.ngram - 1
+        ]
 
         cnt = 0
         for p in all_probable_paths:

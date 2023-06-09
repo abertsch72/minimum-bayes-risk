@@ -16,16 +16,16 @@ def get_dataset(
     full_data = load_dataset(*dataset.value, split=split.value)
     # TODO: move input/output under standardized names
 
-    match dataset.name:
-        case DatasetArgs.SupportedDataset.samsum.name:
-            full_data = full_data.rename_column("dialogue", "input")
-            full_data = full_data.rename_column("summary", "output")
-        case DatasetArgs.SupportedDataset.cnndm.name:
-            full_data = full_data.rename_column("article", "input")
-            full_data = full_data.rename_column("highlights", "output")
-        case DatasetArgs.SupportedDataset.xsum.name:
-            full_data = full_data.rename_column("document", "input")
-            full_data = full_data.rename_column("summary", "output")
+    # match dataset.name:
+    if dataset.name == DatasetArgs.SupportedDataset.samsum.name:
+        full_data = full_data.rename_column("dialogue", "input")
+        full_data = full_data.rename_column("summary", "output")
+    elif dataset.name == DatasetArgs.SupportedDataset.cnndm.name:
+        full_data = full_data.rename_column("article", "input")
+        full_data = full_data.rename_column("highlights", "output")
+    elif dataset.name == DatasetArgs.SupportedDataset.xsum.name:
+        full_data = full_data.rename_column("document", "input")
+        full_data = full_data.rename_column("summary", "output")
 
     if shuffle:
         full_data = full_data.shuffle(seed=seed)

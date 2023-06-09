@@ -2,10 +2,10 @@
     "pipeline": {
         "hf_model_name": "harouzie/bart-base-xsum",
         "hf_tokenizer_name": null,
-        "wandb": true,
+        "wandb": false,
         "wandb_group": "xsum",
         "run_name": "xsum-bart-base-beam",
-        "seed": 101,
+        "seed": 14,
         "no_tqdm": false,
         "no_gpu": false
     },
@@ -13,18 +13,21 @@
         "dataset": "xsum",
         "split": "val",
         "start_index": 0,
-        "end_index": -1
+        "end_index": 1000,
+        "shuffle": true
     },
     "gen": {
         "method_args": {
-            "num_beams": 50
+            "num_beams": 50,
+            "num_beam_groups": 5,
+            "diversity_penalty": 0.3
         },
         "outfile": null,
         "k": 50,
         "max_length": 35
     },
     "rerank": {
-        "rerank_metric": null,
+        "rerank_metric": "rouge1",
         "rerank_temp": Infinity,
         "rerank_geo_mean": false
     },

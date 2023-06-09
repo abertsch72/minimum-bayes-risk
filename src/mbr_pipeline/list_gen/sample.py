@@ -1,19 +1,33 @@
-from typing import Callable, Generator, Tuple, Any
+import warnings
+from typing import Any, Callable, Generator, Tuple
+
 import numpy as np
 from tqdm import tqdm
 from transformers import PreTrainedModel
+
 from mbr_pipeline.list_gen.lattice import Lattice
 
 
 class SamplingMethods:
     @staticmethod
-    def beam_search(input_ids, model, num_seqs, max_length, num_beams):
+    def beam_search(
+        input_ids,
+        model,
+        num_seqs,
+        max_length,
+        num_beams,
+        num_beam_groups=1,
+        diversity_penalty=0.0,
+        do_sample=False,
+    ):
         return model.generate(
             input_ids,
-            do_sample=False,
+            do_sample=do_sample,
             max_length=max_length,
             num_beams=num_beams,
             num_return_sequences=num_seqs,
+            num_beam_groups=num_beam_groups,
+            diversity_penalty=diversity_penalty,
             output_scores=True,
             return_dict_in_generate=True,
         )
@@ -83,7 +97,7 @@ def listgen(
                 max_source_len = model.config.max_position_embeddings
             except:
                 max_source_len = model.config.n_positions
-            
+
             input_ids = tokenizer.encode(
                 dp,
                 return_tensors="pt",
@@ -103,10 +117,15 @@ def listgen(
             scores_on_cpu = tuple(score.cpu() for score in outputs.scores)
             try:
                 transition_scores = model.compute_transition_scores(
-                    outputs.sequences.cpu(), scores_on_cpu, outputs.beam_indices.cpu(), normalize_logits=False).numpy()
+                    outputs.sequences.cpu(),
+                    scores_on_cpu,
+                    outputs.beam_indices.cpu(),
+                    normalize_logits=False,
+                ).numpy()
             except:
                 transition_scores = model.compute_transition_scores(
-                    outputs.sequences.cpu(), scores_on_cpu, normalize_logits=False).numpy()
+                    outputs.sequences.cpu(), scores_on_cpu, normalize_logits=False
+                ).numpy()
 
             output_length = input_ids.shape[0] + np.sum(transition_scores < 0, axis=1)
             length_penalty = model.generation_config.length_penalty

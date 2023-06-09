@@ -21,11 +21,13 @@ from src.mbr_pipeline.utils.choose_dataset import get_dataset
 
 def pipeline(args: Args):
     # using PipelineArgs:
-    
+
     # fix all the seeds
     random.seed(args.pipeline.seed)
     np.random.seed(args.pipeline.seed)
     torch.random.manual_seed(args.pipeline.seed)
+
+    print(args)
 
     if args.pipeline.wandb:
         wandb.init(
@@ -39,9 +41,9 @@ def pipeline(args: Args):
     device = torch.device(
         "cuda" if (not args.pipeline.no_gpu) and torch.cuda.is_available() else "cpu"
     )
-    model = AutoModelForSeq2SeqLM.from_pretrained(args.pipeline.hf_model_name).to(
-        device
-    )
+    # model = AutoModelForSeq2SeqLM.from_pretrained(args.pipeline.hf_model_name).to(
+    #     device
+    # )
     tokenizer = AutoTokenizer.from_pretrained(
         args.pipeline.hf_tokenizer_name
         if args.pipeline.hf_tokenizer_name is not None
@@ -66,33 +68,41 @@ def pipeline(args: Args):
 
     lattices = model = None
     # using ListGenArgs:
-    match args.gen.method_args:
-        # check if the data exists
-        # add the option to regen anyway
-        case Args.ListGenArgs.LatticeMBRArgs():
-            lattices = get_lattices(args.pipeline.lattice_dir)
-            method_name = "lattice_mbr"
-            strategy_fn = decode_hypos_from_lattice
+    # match args.gen.method_args:
 
-        case Args.ListGenArgs.LatticeSamplingArgs():
-            lattices = get_lattices(args.pipeline.lattice_dir)
-            method_name = "lattice_sampling"
-            strategy_fn = lattice_sample_k
+    # check if the data exists
+    # add the option to regen anyway
+    if isinstance(args.gen.method_args, Args.ListGenArgs.LatticeMBRArgs):
+        lattices = get_lattices(args.pipeline.lattice_dir)
+        method_name = "lattice_mbr"
+        strategy_fn = decode_hypos_from_lattice
 
-        case Args.ListGenArgs.BeamSearchArgs():
-            model = AutoModelForSeq2SeqLM.from_pretrained(
-                args.pipeline.hf_model_name
-            ).to(device)
-            strategy_fn = SamplingMethods.beam_search
+    elif isinstance(args.gen.method_args, Args.ListGenArgs.LatticeSamplingArgs):
+        lattices = get_lattices(args.pipeline.lattice_dir)
+        method_name = "lattice_sampling"
+        strategy_fn = lattice_sample_k
+
+    elif isinstance(args.gen.method_args, Args.ListGenArgs.BeamSearchArgs):
+        model = AutoModelForSeq2SeqLM.from_pretrained(args.pipeline.hf_model_name).to(
+            device
+        )
+        strategy_fn = SamplingMethods.beam_search
+        if (
+            args.gen.method_args.num_beam_groups > 1
+            and args.gen.method_args.diversity_penalty > 0.0
+        ):
+            method_name = "diverse_beam"
+        else:
             method_name = "beam"
 
-        case Args.ListGenArgs.ModelSamplingArgs() | _:
-            # TODO: handle temp + nucl differently
-            model = AutoModelForSeq2SeqLM.from_pretrained(
-                args.pipeline.hf_model_name
-            ).to(device)
-            strategy_fn = SamplingMethods.model_sample
-            method_name = "temp" if args.gen.method_args.temp != 1 else "top-p"
+    else:
+        # elif args.gen.method_args == Args.ListGenArgs.ModelSamplingArgs():
+        # TODO: handle temp + nucl differently
+        model = AutoModelForSeq2SeqLM.from_pretrained(args.pipeline.hf_model_name).to(
+            device
+        )
+        strategy_fn = SamplingMethods.model_sample
+        method_name = "temp" if args.gen.method_args.temp != 1 else "top-p"
 
     if args.gen.outfile is None:
         thisdir = [
@@ -175,7 +185,7 @@ def pipeline(args: Args):
         metric_tracker = Metrics(args.eval.eval_metrics.split(","))
 
         metrics_outputs = metric_tracker.score_set(sampling_outputs)
-        wandb_metrics = metric_tracker.output()
+        metric_tracker.output()
 
         if args.eval.outfile is None:
             args.eval.outfile = args.gen.outfile
@@ -184,7 +194,7 @@ def pipeline(args: Args):
             f.write_all(metrics_outputs)
 
         if args.pipeline.wandb:
-            wandb.log(wandb_metrics)
+            wandb.log(metric_tracker.to_dict())
 
 
 if __name__ == "__main__":
