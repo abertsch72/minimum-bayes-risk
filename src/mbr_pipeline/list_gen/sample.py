@@ -34,7 +34,7 @@ class SamplingMethods:
 
     @staticmethod
     def model_sample(input_ids, model, num_seqs, max_length, temp, top_p, sample_unique_seqs=False):
-        sample = model.generate(
+        return model.generate(
             input_ids,
             do_sample=True,
             max_length=max_length,
@@ -44,8 +44,6 @@ class SamplingMethods:
             output_scores=True,
             return_dict_in_generate=True,
         )
-        #sample = set(sample.sequences)
-        while 
 
     @staticmethod
     # TODO: fix args
@@ -124,24 +122,15 @@ def listgen(
                 scores_on_cpu = tuple(score.cpu() for score in outputs.scores)
                 try:
                     transition_scores = model.compute_transition_scores(
-                        outputs.sequences.cpu(), scores_on_cpu, outputs.beam_indices.cpu(), normalize_logits=False).numpy()
+                        outputs.sequences.cpu(),
+                        scores_on_cpu,
+                        outputs.beam_indices.cpu(),
+                        normalize_logits=False,
+                    ).numpy()
                 except:
                     transition_scores = model.compute_transition_scores(
-                        outputs.sequences.cpu(), scores_on_cpu, normalize_logits=False).numpy()
-            # get sequence scores by summing generated token scores and applying length penality
-            # Tip: recomputing the scores is only guaranteed to match with `normalize_logits=False`.
-            scores_on_cpu = tuple(score.cpu() for score in outputs.scores)
-            try:
-                transition_scores = model.compute_transition_scores(
-                    outputs.sequences.cpu(),
-                    scores_on_cpu,
-                    outputs.beam_indices.cpu(),
-                    normalize_logits=False,
-                ).numpy()
-            except:
-                transition_scores = model.compute_transition_scores(
-                    outputs.sequences.cpu(), scores_on_cpu, normalize_logits=False
-                ).numpy()
+                        outputs.sequences.cpu(), scores_on_cpu, normalize_logits=False
+                    ).numpy()
 
                 output_length = input_ids.shape[0] + np.sum(transition_scores < 0, axis=1)
                 length_penalty = model.generation_config.length_penalty
@@ -179,7 +168,7 @@ def listgen(
                 }  
 
 
-            while len(outputs["hypos"] < num_seqs):
+            while len(outputs["hypos"]) < num_seqs:
                 outputs = continue_list_gen(outputs)
 
             outputs["num_unique"] = len(set(outputs["hypos"]))
