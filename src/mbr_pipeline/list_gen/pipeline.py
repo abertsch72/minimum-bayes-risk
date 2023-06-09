@@ -2,21 +2,21 @@ import os
 import sys
 from mbr_pipeline.args import get_parser, get_args
 
-assert __name__ == '__main__' # file should be run as main script
+assert __name__ == "__main__"  # file should be run as main script
 
-# Toss in all the usual flags for the other files, 
+# Toss in all the usual flags for the other files,
 # then add --type {top-k list method}
-method = sys.argv[sys.argv.index("--type")+1]
+method = sys.argv[sys.argv.index("--type") + 1]
 
-if method == 'latticesamp':
+if method == "latticesamp":
     gen_parser = get_parser(latticesamp=True)
     from lattice_sample import run_lattice_sampling as gen_fn
-elif method == 'latticembr':
+elif method == "latticembr":
     gen_parser = get_parser(latticembr=True)
     from lattice_mbr import run_lattice_mbr as gen_fn
-elif method == 'beamsearch':
+elif method == "beamsearch":
     raise NotImplementedError
-elif method == 'tempsamp':
+elif method == "tempsamp":
     raise NotImplementedError
 else:
     raise Exception(f"Unknown decoding method: {method}")
@@ -30,6 +30,7 @@ else:
     print(f"Outfile {gen_args.outfile} already exists, skipping to evaluation.")
 
 from rerank import run_rerank
+
 rerank_parser = get_parser(rerank=True)
 rerank_args = get_args(rerank_parser)
 rerank_configs = getattr(rerank_args, "rerank_configs")
@@ -43,6 +44,7 @@ else:
     run_rerank(rerank_args)
 
 from evaluate import run_eval
+
 eval_parser = get_parser()
 eval_args = get_args(eval_parser)
 print("Evaluation args:", eval_args)

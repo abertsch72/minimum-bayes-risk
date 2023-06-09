@@ -2,6 +2,7 @@ import numpy as np
 import torch
 import random
 
+
 def set_seed(seed):
     if not isinstance(seed, int):
         return
