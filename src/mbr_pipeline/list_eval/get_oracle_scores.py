@@ -1,8 +1,9 @@
 import json
 import os
-from tqdm import tqdm
-from rouge_score import rouge_scorer
+
 import numpy as np
+from rouge_score import rouge_scorer
+from tqdm import tqdm
 
 full_rouge_scorer = rouge_scorer.RougeScorer(
     ["rouge1", "rouge2", "rougeL"], use_stemmer=True

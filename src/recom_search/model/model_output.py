@@ -1,14 +1,16 @@
 from dataclasses import dataclass
+from typing import Any, List, Optional, Text, Tuple
+
 import torch
 from transformers.file_utils import ModelOutput
-from typing import Any, Optional, Tuple, List, Text
+
 from src.recom_search.model.beam_node import BeamNode
 
 
 @dataclass
 class SearchModelOutput(ModelOutput):
-    """
-    """
+    """ """
+
     ends: List[BeamNode] = None
     output: Optional[str] = None
     output_token: Optional[Tuple[int]] = None

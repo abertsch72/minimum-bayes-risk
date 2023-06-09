@@ -1,9 +1,9 @@
+from dataclasses import dataclass, field
 from enum import Enum
 from typing import Optional, Union
-from dataclasses import dataclass, field
 
-from dataclasses_json import dataclass_json, config
 import marshmallow as mm
+from dataclasses_json import config, dataclass_json
 
 
 @dataclass_json
@@ -86,6 +86,9 @@ class Args:
             """
 
             num_beams: Optional[int] = field(default=50)
+            num_beam_groups: Optional[int] = field(default=1)
+            diversity_penalty: Optional[float] = field(default=0.0)
+            do_sample: Optional[bool] = field(default=False)
 
         @dataclass_json
         @dataclass

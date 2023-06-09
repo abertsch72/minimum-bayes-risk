@@ -1,9 +1,21 @@
-from src.recom_search.model.bfs_util import HashObject
-from src.recom_search.model.beam_node import BeamNode
 from typing import List
 
+from src.recom_search.model.beam_node import BeamNode
+from src.recom_search.model.bfs_util import HashObject
+
+
 class BeamNodeFull(BeamNode):
-    def __init__(self, hash:HashObject, prob: float, token_idx: int, prev: List, prev_score: List, min_len: int=10, finished: bool = False, master_node_uid= None) -> None:
+    def __init__(
+        self,
+        hash: HashObject,
+        prob: float,
+        token_idx: int,
+        prev: List,
+        prev_score: List,
+        min_len: int = 10,
+        finished: bool = False,
+        master_node_uid=None,
+    ) -> None:
         super().__init__(prob, token_idx, prev, prev_score, min_len, finished)
         self.hash = hash
         self.master_node_uid = master_node_uid or self.uid
@@ -35,7 +47,7 @@ class BeamNodeFull(BeamNode):
 
     def get_antecedent(self, step=10):
         """
-        Get all antecedents of the node. 
+        Get all antecedents of the node.
         """
         antecedents = []
 
@@ -59,18 +71,22 @@ class BeamNodeFull(BeamNode):
     def add_prev_node(self, node_id, score):
         """
         self: a b c d  a   f g
-        node: a b c d  x y 
+        node: a b c d  x y
 
         """
         # loop detection
         # check if self is the ancedant node of "node"
-        if self in self.hash.retrieve_node(node_id).get_antecedent() or self.hash.find_root_node_uid(self.uid)  == self.hash.find_root_node_uid(node_id) or (node_id in self.prev):
+        if (
+            self in self.hash.retrieve_node(node_id).get_antecedent()
+            or self.hash.find_root_node_uid(self.uid)
+            == self.hash.find_root_node_uid(node_id)
+            or (node_id in self.prev)
+        ):
             # do not add prev node
             return
 
         self.prev.append(node_id)
         self.prev_score.append(score)
-
 
     def visualization(self):
         nodes, edges = {}, {}
@@ -88,27 +104,24 @@ class BeamNodeFull(BeamNode):
             for p, ps in zip(my_prev, my_prev_score):
                 p_uid = self.hash.find_root_node_uid(p)
                 # p_node = self.hash.retrieve_node(p_uid)
-                edge_info = {
-                    'src': p_uid,
-                    'tgt': node_uid,
-                    'score': ps
-                }
+                edge_info = {"src": p_uid, "tgt": node_uid, "score": ps}
                 edges[f"{p_uid}_{node_uid}"] = edge_info
                 # edges.append(edge_info)
 
             nodes[node.uid] = {
-                'uid': node_uid,
-                'text': node.token_str,
-                'tok_idx': node.token_idx
+                "uid": node_uid,
+                "text": node.token_str,
+                "tok_idx": node.token_idx,
             }
 
             prevs = node.prev
             _, prevs = self.hash.retrieve_group_nodes(prevs)
             for p in prevs:
                 dfs(p)
+
         dfs(self)
         return nodes, edges
-    
+
     def get_tokens_match_suffix(self, inp_suffix_tokens: List[int]):
         """
         suffix_tokens is the target suffix to match
@@ -117,7 +130,7 @@ class BeamNodeFull(BeamNode):
         """
         reversed_tokens = []
         suffix_tokens = inp_suffix_tokens.copy()
-        
+
         prev = [[self.uid]]
         while prev and suffix_tokens:
             last_target_token_idx = suffix_tokens.pop(-1)
@@ -132,7 +145,7 @@ class BeamNodeFull(BeamNode):
                 token = node.token_idx
                 if token == last_target_token_idx:
                     # _, tmp_prev = self.hash.retrieve_group_nodes(node.prev)
-                    new_prev += [list_p + [x] for x in node.prev] 
+                    new_prev += [list_p + [x] for x in node.prev]
 
             reversed_tokens.append(last_target_token_idx)
             prev = new_prev
@@ -148,7 +161,6 @@ class BeamNodeFull(BeamNode):
 
         return reversed_tokens[::-1], matched_suffix_node_ids
 
-
     def get_tokens_str(self):
         out = [self.token_str]
         prev = self.prev
@@ -158,4 +170,4 @@ class BeamNodeFull(BeamNode):
             out.append(prev.token_str)
             prev = prev.prev
         out = out[::-1]
-        return '-'.join(out)
+        return "-".join(out)

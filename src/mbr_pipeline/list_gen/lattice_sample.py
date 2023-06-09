@@ -1,13 +1,15 @@
 import os
-from transformers import AutoTokenizer
 import random
+
 import jsonlines
-from tqdm import tqdm
-import wandb
-from src.mbr_pipeline.utils.utils import set_seed
 import numpy as np
-from mbr_pipeline.list_gen.lattice import Lattice
 from scipy.special import logsumexp, softmax
+from tqdm import tqdm
+from transformers import AutoTokenizer
+
+import wandb
+from mbr_pipeline.list_gen.lattice import Lattice
+from src.mbr_pipeline.utils.utils import set_seed
 
 
 def sample_path(lattice: Lattice, sample_uniform=False, max_len=float("inf"), temp=1.0):
@@ -79,12 +81,12 @@ def lattice_sample_k(
 
 """
 def run_lattice_sampling(lattices, k: int, sample_sample_uniform: bool, max_len: int, no_repeats: bool, lattice_score_temp: float, tokenizer: AutoTokenizer):
-   
+
     all_hypos = []
     for lattice, output in lattices:
         topk_hypos = sample_k(
-            lattice, tokenizer, 
-            k=k, 
+            lattice, tokenizer,
+            k=k,
             sample_uniform=sample_sample_uniform,
             max_len=max_len,
             no_repeats=no_repeats,

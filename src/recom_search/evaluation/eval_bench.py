@@ -1,7 +1,5 @@
-
 import statistics
-from collections import Counter
-from collections import defaultdict
+from collections import Counter, defaultdict
 from typing import List
 
 import editdistance
@@ -12,7 +10,8 @@ from sacrebleu.metrics import BLEU
 nlp = spacy.load("en_core_web_sm")
 
 full_rouge_scorer = rouge_scorer.RougeScorer(
-    ['rouge1', 'rouge2', 'rougeL'], use_stemmer=True)
+    ["rouge1", "rouge2", "rougeL"], use_stemmer=True
+)
 
 
 bleu_scorer = BLEU(effective_order=True)
@@ -23,7 +22,7 @@ def _get_ngrams(n, text):
     text_length = len(text)
     max_index_ngram_start = text_length - n
     for i in range(max_index_ngram_start + 1):
-        ngram_set.add(tuple(text[i:i + n]))
+        ngram_set.add(tuple(text[i : i + n]))
     return ngram_set
 
 
@@ -62,7 +61,8 @@ def self_bleu(inp_group: List[str]):
     for idx, inp in enumerate(inp_group):
         # bleu_score = nltk.translate.bleu_score.sentence_bleu([x for jdx, x in enumerate(tok_inputs) if jdx != idx], inp)
         bleu_score = bleu_scorer.sentence_score(
-            inp, [x for jdx, x in enumerate(inp_group) if jdx != idx])
+            inp, [x for jdx, x in enumerate(inp_group) if jdx != idx]
+        )
         bleu_scores.append(bleu_score.score)
     return statistics.mean(bleu_scores)
 
@@ -71,8 +71,7 @@ def self_edit_distance(inp_group: List[str]):
     # tok_inputs = tokenize_sentences(inp_group)
     ed_scores = []
     for idx, inp in enumerate(inp_group):
-        for jdx in range(idx+1, len(inp_group)):
-
+        for jdx in range(idx + 1, len(inp_group)):
             v = editdistance.eval(inp_group[idx], inp_group[jdx])
             ed_scores.append(v)
     return statistics.mean(ed_scores)
@@ -91,7 +90,7 @@ def repetition(inp_group: List[str], threshold=3):
     return matter / total_len
 
 
-def rouge_single_pair(cand: str, ref: str, metric='rouge1'):
+def rouge_single_pair(cand: str, ref: str, metric="rouge1"):
     s = full_rouge_scorer.score(cand, ref)
     return s[metric].fmeasure
 
@@ -100,10 +99,10 @@ def rouge(inp_group, reference: str) -> dict:
     scores = defaultdict(list)
     for inp in inp_group:
         s = full_rouge_scorer.score(inp, reference)
-        f1, f2, fl = s['rouge1'].fmeasure, s['rouge2'].fmeasure, s['rougeL'].fmeasure
-        scores['r1'].append(f1)
-        scores['r2'].append(f2)
-        scores['rl'].append(fl)
+        f1, f2, fl = s["rouge1"].fmeasure, s["rouge2"].fmeasure, s["rougeL"].fmeasure
+        scores["r1"].append(f1)
+        scores["r2"].append(f2)
+        scores["rl"].append(fl)
     d = {}
     for k, v in scores.items():
         avg = statistics.mean(v)
@@ -116,7 +115,7 @@ def group_bleu(inp_group, reference: str) -> dict:
     for idx, inp in enumerate(inp_group):
         # bleu_score = nltk.translate.bleu_score.sentence_bleu([x for jdx, x in enumerate(tok_inputs) if jdx != idx], inp)
         bleu_score = bleu_scorer.sentence_score(inp, [reference])
-        scores['bleu'].append(bleu_score.score)
+        scores["bleu"].append(bleu_score.score)
     d = {}
     for k, v in scores.items():
         avg = statistics.mean(v)
@@ -132,14 +131,13 @@ def eval_main(inp_group, reference, flag_sum, prefix=""):
     if len(inp_group) <= 1:
         d = {
             # 'REP': 0,
-            'SELF_BLEU': 0,
+            "SELF_BLEU": 0,
             # 'NP_OVERLAP': 0,
         }
     else:
         d = {
-
             # 'REP': repetition(inp_group),
-            'SELF_BLEU': self_bleu(inp_group),
+            "SELF_BLEU": self_bleu(inp_group),
             # 'NP_OVERLAP': np_overlap(inp_group),
         }
     d = {**d, **dict_rouge}

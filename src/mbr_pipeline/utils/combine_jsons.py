@@ -1,8 +1,9 @@
 # temp sampling util: given a list of folders, combine files across them into a single jsonlines
 
 
-import os
 import json
+import os
+
 import jsonlines
 
 

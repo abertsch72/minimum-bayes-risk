@@ -1,14 +1,27 @@
-from typing import List
-from src.recom_search.model.util import gen_rand_id
-import random,math
-from src.recom_search.model.exec_setup import tokenizer
+import math
+import random
 from abc import ABC, abstractmethod
+from typing import List
+
 import torch
+
+from src.recom_search.model.exec_setup import tokenizer
+from src.recom_search.model.util import gen_rand_id
+
 random.seed(2021)
 from statistics import mean
 
+
 class BeamNode(ABC):
-    def __init__(self, prob: float, token_idx: int, prev: List, prev_score: List, min_len:int=10, finished:bool=False) -> None:
+    def __init__(
+        self,
+        prob: float,
+        token_idx: int,
+        prev: List,
+        prev_score: List,
+        min_len: int = 10,
+        finished: bool = False,
+    ) -> None:
         self.uid = gen_rand_id()
         self.prob = prob
         self.score = math.log(prob)
@@ -16,8 +29,11 @@ class BeamNode(ABC):
         self.prev_score = prev_score
         self.token_idx = token_idx
 
-        self.token_str = tokenizer.decode(
-            self.token_idx, skip_special_tokens=False) if tokenizer else f"{token_idx}"
+        self.token_str = (
+            tokenizer.decode(self.token_idx, skip_special_tokens=False)
+            if tokenizer
+            else f"{token_idx}"
+        )
 
         self.finished = finished
         self.min_len = min_len
@@ -32,7 +48,9 @@ class BeamNode(ABC):
             return self.hash.retrieve_node(inp)
 
     def has_finished(self):
-        if (self.token_str.strip() == '.' or self.token_str.strip() == '</s>') and self.length >= self.min_len:
+        if (
+            self.token_str.strip() == "." or self.token_str.strip() == "</s>"
+        ) and self.length >= self.min_len:
             self.finished = True
         else:
             self.finished = False
@@ -46,18 +64,18 @@ class BeamNode(ABC):
         """
         tokens = [self.token_idx]
         scores = [self.score]
-        prevs = self.prev    # prev is a list
+        prevs = self.prev  # prev is a list
         while prevs:
             prev = prevs[0]
             prev_repr = self.get_repr(prev)
             tokens.append(prev_repr.token_idx)
             scores.append(prev_repr.score)
-            prevs = prev_repr.prev        # update pointer
+            prevs = prev_repr.prev  # update pointer
         self.all_score = scores[::-1]
         self.all_token_idx = tokens[::-1]
         self.length = len(tokens)
 
-    def get_canonical_str(self, split_tok='-')->str:
+    def get_canonical_str(self, split_tok="-") -> str:
         out = [self.token_str]
         prevs = self.prev
         while prevs:
@@ -73,6 +91,7 @@ class BeamNode(ABC):
         tokens = self.all_token_idx
         dec_prefix = torch.tensor([tokens], dtype=torch.long)
         return dec_prefix
+
     def get_score_sum(self):
         all_score = self.all_score
         return sum(all_score)
@@ -82,4 +101,3 @@ class BeamNode(ABC):
 
     def __repr__(self) -> str:
         return self.get_tokens_str()
-
