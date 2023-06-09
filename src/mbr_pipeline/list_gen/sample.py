@@ -41,14 +41,23 @@ def listgen(strategy_fn: Callable, tokenizer, dataset, device, num_seqs, max_len
     else:
         for i in tqdm(range(len(dataset))):
             dp = dataset["input"][i]
-            input_ids = tokenizer.encode(dp, return_tensors='pt', truncation=True, max_length=model.config.max_position_embeddings).to(device)
+            max_len = 0
+            try:
+                max_len = model.config.max_position_embeddings
+            except:
+                max_len = model.config.n_positions
+            input_ids = tokenizer.encode(dp, return_tensors='pt', truncation=True, max_length=max_len).to(device)
             outputs = strategy_fn(input_ids, model, num_seqs=num_seqs, max_length=max_length, **strategy_args) #
 
             # get sequence scores by summing generated token scores and applying length penality
             # Tip: recomputing the scores is only guaranteed to match with `normalize_logits=False`. 
             scores_on_cpu = tuple(score.cpu() for score in outputs.scores)
-            transition_scores = model.compute_transition_scores(
-                outputs.sequences.cpu(), scores_on_cpu, outputs.beam_indices.cpu(), normalize_logits=False).numpy()
+            try:
+                transition_scores = model.compute_transition_scores(
+                    outputs.sequences.cpu(), scores_on_cpu, outputs.beam_indices.cpu(), normalize_logits=False).numpy()
+            except:
+                transition_scores = model.compute_transition_scores(
+                    outputs.sequences.cpu(), scores_on_cpu, normalize_logits=False).numpy()
 
             output_length = input_ids.shape[0] + np.sum(transition_scores < 0, axis=1)
             length_penalty = model.generation_config.length_penalty

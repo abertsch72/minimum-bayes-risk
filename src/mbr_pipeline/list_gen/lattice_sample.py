@@ -1,6 +1,6 @@
 import os
-from mbr_pipeline.args import get_parser
-from lattice import Lattice
+#from src.mbr_pipeline.args import get_parser
+from src.mbr_pipeline.list_gen.lattice import Lattice
 import numpy as np
 from transformers import AutoTokenizer
 import random
@@ -8,7 +8,7 @@ from scipy.special import softmax, logsumexp
 import jsonlines
 from tqdm import tqdm
 import wandb
-from mbr_pipeline.utils.utils import set_seed
+from src.mbr_pipeline.utils.utils import set_seed
 
 from typing import Text
 

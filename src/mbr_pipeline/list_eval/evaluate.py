@@ -49,10 +49,12 @@ class Metrics:
         header = " "*longest_key + " | " + " | ".join(k[:6].rjust(6) for k in sorted_cols)
         
         print(header)
+        output_dict = {}
         for key in table_keys:
             avg_metric = average(self.metrics[key])
             if sum(avg_metric.score_dict.values()) == 0.0:
                 continue
+            output_dict[key] = str(avg_metric)
             if "top" in key:
                 print(f"{C.OKBLUE}{key.ljust(longest_key)} | {avg_metric}{C.ENDC}")
             else:
@@ -62,7 +64,9 @@ class Metrics:
         for key in self.metrics.keys():
             if key in table_keys:
                 continue
+            output_dict[key] = str(average(self.metrics[key]))
             print(f"{key.ljust(longest_key)} | " + f"{average(self.metrics[key]):.2f}".rjust(6))
+        return output_dict
 
     def geomean(self, score):
         eps = 1e-4

@@ -18,7 +18,7 @@ from src.mbr_pipeline.reranking.rerank import Reranker
 from src.mbr_pipeline.list_gen.lattice import Lattice
 from src.mbr_pipeline.list_gen.lattice_sample import lattice_sample_k
 
-def pipeline(args):
+def pipeline(args: Args):
     # using PipelineArgs:
     random.seed(args.pipeline.seed)
 
@@ -120,7 +120,7 @@ def pipeline(args):
     metric_tracker = Metrics(args.eval.eval_metrics.split(",")) 
 
     metrics_outputs = metric_tracker.score_set(sampling_outputs)
-    metric_tracker.output()
+    wandb_metrics = metric_tracker.output()
 
     if args.eval.outfile is None:
         args.eval.outfile = args.gen.outfile
@@ -128,7 +128,7 @@ def pipeline(args):
     with jsonlines.open(args.eval.outfile, 'w') as f:
         f.write_all(metrics_outputs)
 
-    wandb.log(metrics_outputs)
+    wandb.log(wandb_metrics) 
 
 
 if __name__ == '__main__':

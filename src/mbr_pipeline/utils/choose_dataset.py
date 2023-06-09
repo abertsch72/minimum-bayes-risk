@@ -28,8 +28,9 @@ def get_dataset(dataset: DatasetArgs.SupportedDataset, split: DatasetArgs.DataSp
         return full_data
 
 def test():
-    args = DatasetArgs(dataset=DatasetArgs.SupportedDataset.samsum, split=DatasetArgs.DataSplit.test, end_index=351)
-    print(get_dataset(**args.__dict__))
+    args = DatasetArgs(dataset=DatasetArgs.SupportedDataset.samsum, split=DatasetArgs.DataSplit.test, end_index=351, shuffle=True)
+    print(get_dataset(**args.__dict__, seed=14))
 
 
-#test()
+if __name__ == "__main__":
+    test()
