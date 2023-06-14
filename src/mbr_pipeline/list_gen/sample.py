@@ -5,7 +5,7 @@ import numpy as np
 from tqdm import tqdm
 from transformers import PreTrainedModel
 
-from mbr_pipeline.list_gen.lattice import Lattice
+from src.mbr_pipeline.list_gen.lattice import Lattice
 
 
 class SamplingMethods:
@@ -40,7 +40,9 @@ class SamplingMethods:
             max_length=max_length,
             top_p=top_p,
             temperature=temp,
+            num_beams=1,
             num_return_sequences=num_seqs,
+            num_beam_groups=1,
             output_scores=True,
             return_dict_in_generate=True,
         )
@@ -60,10 +62,10 @@ def listgen(
     device,
     num_seqs,
     max_length,
+    unique_k,
     strategy_args,
     model: PreTrainedModel = None,
     lattices: Generator[Tuple[Lattice, Any], None, None] = None,
-    sample_unique_list = False,
 ):
     all_hypos = []
 
@@ -97,7 +99,10 @@ def listgen(
             try:
                 max_source_len = model.config.max_position_embeddings
             except:
-                max_source_len = model.config.n_positions
+                try:
+                    max_source_len = model.config.n_positions
+                except: 
+                    max_source_len = model.config.d_model
 
             input_ids = tokenizer.encode(
                 dp,
@@ -108,8 +113,8 @@ def listgen(
 
             outputs_tokens = {}
 
-            def continue_list_gen(prev_unique={}):
-                outputs = strategy_fn(
+            def continue_list_gen(outputs={}):
+                model_outputs = strategy_fn(
                     input_ids,
                     model,
                     num_seqs=num_seqs,
@@ -119,17 +124,17 @@ def listgen(
 
                 # get sequence scores by summing generated token scores and applying length penality
                 # Tip: recomputing the scores is only guaranteed to match with `normalize_logits=False`.
-                scores_on_cpu = tuple(score.cpu() for score in outputs.scores)
+                scores_on_cpu = tuple(score.cpu() for score in model_outputs.scores)
                 try:
                     transition_scores = model.compute_transition_scores(
-                        outputs.sequences.cpu(),
+                        model_outputs.sequences.cpu(),
                         scores_on_cpu,
-                        outputs.beam_indices.cpu(),
+                        model_outputs.beam_indices.cpu(),
                         normalize_logits=False,
                     ).numpy()
                 except:
                     transition_scores = model.compute_transition_scores(
-                        outputs.sequences.cpu(), scores_on_cpu, normalize_logits=False
+                        model_outputs.sequences.cpu(), scores_on_cpu, normalize_logits=False
                     ).numpy()
 
                 output_length = input_ids.shape[0] + np.sum(transition_scores < 0, axis=1)
@@ -140,22 +145,24 @@ def listgen(
 
                 # todo: hash outputs.sequences
                 outputs_decoded = tokenizer.batch_decode(
-                    outputs.sequences, skip_special_tokens=True
+                    model_outputs.sequences, skip_special_tokens=True
                 )
-                
-                if sample_unique_list:
-                    # TODO: track total number of samples
-                    # TODO: dedup at token level instead 
-                    scores_for_unq = dict(zip(outputs_decoded, reconstructed_scores))
-                    previous_unq = dict(zip(outputs["hypos"], outputs["reconstructed_scores"]))
-                    scores_for_unq.update(previous_unq) # overrides any duplicates here with the older version
-                    # debug
-                    print(f"The total number of new hypotheses is {len(scores_for_unq) - len(previous_unq)} for a total of {len(scores_for_unq)} generated!")
-                    outputs_decoded = scores_for_unq.keys()
-                    reconstructed_scores = [scores_for_unq[output] for output in outputs_decoded]
+                hashes = [hash(tuple(seq)) for seq in model_outputs.sequences]
+                saved_out = zip(outputs_decoded, reconstructed_scores)
+                these_outputs = list(zip(hashes, saved_out))
+                outputs_tokens.update(these_outputs)
 
-                outputs["hypos"] = outputs["hypos"].extend(outputs_decoded)
-                outputs["lprobs"] = outputs["lprobs"].extend(reconstructed_scores)
+                del model_outputs
+                
+                if unique_k:
+                    outputs["num_samples"] = outputs.get("num_samples", 0) + num_seqs
+                    #print(outputs_tokens)
+                    print(f"The total number of unique hypotheses is {len(outputs_tokens.keys())} out of {outputs['num_samples']} total sampled!")
+                    outputs_decoded = [output[0] for output in list(outputs_tokens.values())]
+                    reconstructed_scores = [output[1] for output in list(outputs_tokens.values())]
+
+                outputs["hypos"] = outputs_decoded
+                outputs["lprobs"] = reconstructed_scores
 
                 return outputs
             

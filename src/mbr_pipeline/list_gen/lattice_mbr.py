@@ -5,7 +5,7 @@ import numpy as np
 import torch
 from scipy.special import softmax
 
-from mbr_pipeline.list_gen.lattice import Lattice
+from src.mbr_pipeline.list_gen.lattice import Lattice
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 

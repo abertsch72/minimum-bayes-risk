@@ -8,7 +8,7 @@ from tqdm import tqdm
 from transformers import AutoTokenizer
 
 import wandb
-from mbr_pipeline.list_gen.lattice import Lattice
+from src.mbr_pipeline.list_gen.lattice import Lattice
 from src.mbr_pipeline.utils.utils import set_seed
 
 

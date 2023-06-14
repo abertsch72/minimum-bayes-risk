@@ -234,6 +234,10 @@ class Args:
             default=50,
             metadata={"help": "Length of top-k list"},
         )
+        unique_k: Optional[bool] = field(
+            default=False,
+            metadata={"help": "whether to get <k> unique outputs"}
+        )
         outfile: Optional[str] = field(default=None)
 
     @dataclass_json
@@ -257,6 +261,11 @@ class Args:
         rerank_geo_mean: Optional[bool] = field(
             default=False,
             metadata={"help": "use geo mean of rouges up to specified order"},
+        )
+
+        rank_by_freq: Optional[bool] = field(
+            default=False,
+            metadata={"help": "use frequency of hypotheses instead of lprobs to rank"},
         )
 
     @dataclass_json
