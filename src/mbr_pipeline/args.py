@@ -35,6 +35,8 @@ class Args:
             samsum = ["samsum"]
             cnndm = ["ccdv/cnn_dailymail", "3.0.0"]
             xsum = ["xsum"]
+            flores = ["facebook/flores", "nob_Latn-eng_Latn"]
+            flores_isl = ["facebook/flores", "isl_Latn-eng_Latn"]
 
             def __str__(e):
                 return e.name
@@ -43,6 +45,9 @@ class Args:
             val = "validation"
             test = "test"
             train = "train"
+            # for flores:
+            dev = "dev"
+            devtest = "devtest"
 
             def __str__(e):
                 return e.name
@@ -88,7 +93,10 @@ class Args:
             num_beams: Optional[int] = field(default=50)
             num_beam_groups: Optional[int] = field(default=1)
             diversity_penalty: Optional[float] = field(default=0.0)
-            do_sample: Optional[bool] = field(default=False)
+            stochastic: Optional[bool] = field(default=False)
+            memoryless: Optional[bool] = field(default=False)
+            beam_temp: Optional[float] = field(default=1.0)
+            beam_top_p: Optional[float] = field(default=1.0)
 
         @dataclass_json
         @dataclass
@@ -97,8 +105,8 @@ class Args:
             Arguments for all model-based sampling baselines
             """
 
-            temp: Optional[float] = field(default=1)
-            top_p: Optional[float] = field(default=1)
+            temp: Optional[float] = field(default=1.0)
+            top_p: Optional[float] = field(default=1.0)
 
         @dataclass_json
         @dataclass
@@ -266,6 +274,11 @@ class Args:
         rank_by_freq: Optional[bool] = field(
             default=False,
             metadata={"help": "use frequency of hypotheses instead of lprobs to rank"},
+        evidence_set_file: Optional[str] = field(
+            default=None,
+            metadata={
+                "help": "file containing hypotheses for evidence set; if null, hypothesis set used as evidence set"
+            },
         )
 
     @dataclass_json

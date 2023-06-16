@@ -25,21 +25,14 @@ load_args("configs/config-test.json")
 
 # make a large set of args
 from entrypoint import pipeline
+
 len_by_dataset = {"cnndm": 70, "samsum": 60}
 args = Args(
     pipeline=Args.PipelineArgs(hf_model_name="lidiya/bart-base-samsum"),
-    dataset=Args.DatasetArgs(
-        dataset=dataset, split=Args.DatasetArgs.DataSplit.val
-    ),
-    gen=Args.ListGenArgs(
-        method_args=gen_strat, max_length=length, k=50
-    ),
-    rerank=Args.ListRerankArgs(
-        rerank_metric=rerank, rerank_geo_mean=geo
-    ),
-    eval=Args.EvalArgs(
-        eval_metrics="rouge1,rouge2,rougeL,chrf,bertscore"
-    ),
+    dataset=Args.DatasetArgs(dataset=dataset, split=Args.DatasetArgs.DataSplit.val),
+    gen=Args.ListGenArgs(method_args=gen_strat, max_length=length, k=50),
+    rerank=Args.ListRerankArgs(rerank_metric=rerank, rerank_geo_mean=geo),
+    eval=Args.EvalArgs(eval_metrics="rouge1,rouge2,rougeL,chrf,bertscore"),
 )
 pipeline(args)
 """
@@ -94,3 +87,4 @@ for dataset in [Args.DatasetArgs.SupportedDataset.samsum]:
                         ),
                     )
                     pipeline(args)
+"""

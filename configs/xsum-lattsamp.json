@@ -1,0 +1,37 @@
+{
+    "pipeline": {
+        "hf_model_name": "harouzie/bart-base-xsum",
+        "hf_tokenizer_name": "harouzie/bart-base-xsum",
+        "wandb": true,
+        "wandb_group": "xsum",
+        "run_name": "xsum-bart-base-lattsamp",
+        "seed": 101,
+        "no_tqdm": false,
+        "no_gpu": false,
+        "lattice_dir": "output/data/250-zip-startat3k"
+    },
+    "dataset": {
+        "dataset": "xsum",
+        "split": "val",
+        "start_index": 0,
+        "end_index": -1
+    },
+    "gen": {
+        "method_args": {
+            "lattice_score_temp": 0.7,
+            "sample_uniform": false
+        },
+        "outfile": null,
+        "max_length": 35,
+        "k": 50
+    },
+    "rerank": {
+        "rerank_metric": null,
+        "rerank_temp": Infinity,
+        "rerank_geo_mean": false
+    },
+    "eval": {
+        "eval_metrics": "rouge1,rouge2,rougeL,chrf",
+        "outfile": null
+    }
+}
