@@ -20,8 +20,9 @@ from src.mbr_pipeline.list_eval.scorers import (
 
 
 class Reranker:
-    def __init__(self, rerank_temp, rerank_metric, rerank_geo_mean):
+    def __init__(self, rerank_temp, rerank_metric, rerank_geo_mean, rank_by_freq):
         self.rerank_temp = rerank_temp
+        self.rank_by_freq = rank_by_freq
 
         self.rerank_metric = (rerank_metric,)
         if "rouge" in rerank_metric:
@@ -61,7 +62,7 @@ class Reranker:
         if lprobs is None:
             lprobs = np.ones_like(lprobs)
 
-        if self.rerank_temp == float("inf"):
+        if self.rerank_temp == float("inf") or self.rank_by_freq:
             probs = np.ones_like(lprobs) / len(lprobs)
         else:
             probs = softmax(lprobs / self.rerank_temp)
@@ -81,6 +82,8 @@ def run_rerank(args):
     rerank_metric = args.rerank_metric
     if "rouge" in rerank_metric and args.rerank_geo_mean:
         rerank_metric += "_geo"
+    if args.rank_by_freq:
+        rerank_metric += "_freq"
     rerank_metric += f"temp-{args.rerank_temp}"
 
     for line in tqdm(lines):

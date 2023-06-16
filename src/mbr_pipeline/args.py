@@ -242,6 +242,9 @@ class Args:
             default=50,
             metadata={"help": "Length of top-k list"},
         )
+        unique_k: Optional[bool] = field(
+            default=False, metadata={"help": "whether to get <k> unique outputs"}
+        )
         outfile: Optional[str] = field(default=None)
 
     @dataclass_json
@@ -272,6 +275,10 @@ class Args:
             metadata={
                 "help": "file containing hypotheses for evidence set; if null, hypothesis set used as evidence set"
             },
+        )
+        rank_by_freq: Optional[bool] = field(
+            default=False,
+            metadata={"help": "use frequency of hypotheses instead of lprobs to rank"},
         )
 
     @dataclass_json

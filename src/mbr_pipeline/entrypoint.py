@@ -171,6 +171,7 @@ def pipeline(args: Args):
 
         args.gen.outfile = os.path.join(constructed_path, fname)
 
+    print(args.gen.outfile)
     if not os.path.exists(args.gen.outfile):
         sampling_outputs = listgen(
             strategy_fn=strategy_fn,
@@ -181,6 +182,7 @@ def pipeline(args: Args):
             device=device,
             num_seqs=args.gen.k,
             max_length=args.gen.max_length,
+            unique_k=args.gen.unique_k,
             strategy_args=args.gen.method_args.__dict__,
         )
 
@@ -197,11 +199,16 @@ def pipeline(args: Args):
             rerank_temp=args.rerank.rerank_temp,
             rerank_metric=args.rerank.rerank_metric,
             rerank_geo_mean=args.rerank.rerank_geo_mean,
+            rank_by_freq=args.rerank.rank_by_freq,
         )
 
         rerank_metric = args.rerank.rerank_metric
         if "rouge" in rerank_metric and args.rerank.rerank_geo_mean:
             rerank_metric += "_geo"
+        if args.rerank.rank_by_freq:
+            rerank_metric += "_freq"
+        else:
+            rerank_metric += "_logprobs"
         rerank_metric += f"temp-{args.rerank.rerank_temp}"
 
         evidence_outputs = None
