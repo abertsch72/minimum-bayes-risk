@@ -13,6 +13,7 @@ from src.mbr_pipeline.list_eval.scorers import (
     Scorer,
     rescore_bartscore,
     rescore_bertscore,
+    rescore_bleu,
     rescore_rouge,
     self_bleu,
 )
@@ -27,11 +28,13 @@ class Reranker:
             if rerank_geo_mean:
                 order = int(rerank_metric[5:])
                 self.rerank_metric = tuple(f"rouge{i}" for i in range(1, order + 1))
-            self.rerank_fn = lambda hypos, probs: rescore_rouge(
-                hypos, probs, self.rerank_metric
+            self.rerank_fn = lambda hypos, probs, evidence_set: rescore_rouge(
+                hypos, probs, self.rerank_metric, evidence_set=evidence_set
             )
         elif rerank_metric == "bertscore":
             self.rerank_fn = rescore_bertscore
+        elif rerank_metric == "bleu":
+            self.rerank_fn = rescore_bleu
         else:
             self.rerank_fn = None
         self.metrics = defaultdict(lambda: [])
@@ -46,15 +49,25 @@ class Reranker:
 
         return geo_mean
 
-    def rerank(self, item: dict) -> List[int]:
+    def rerank(self, item: dict, evidence_set: List[dict] = None) -> List[int]:
         hypos = item["hypos"]
-        if "lprobs" in item:
+        lprobs = evidence_hypos = None
+        if evidence_set is not None:
+            evidence_hypos = evidence_set["hypos"]
+            if "lprobs" in evidence_set:
+                lprobs = np.array(evidence_set["lprobs"])
+        elif "lprobs" in item:
             lprobs = np.array(item["lprobs"])
-        else:
-            lprobs = np.zeros(len(hypos))
+        if lprobs is None:
+            lprobs = np.ones_like(lprobs)
 
-        probs = softmax(lprobs / self.rerank_temp)
-        rerank_scores = np.array(self.rerank_fn(hypos, probs))
+        if self.rerank_temp == float("inf"):
+            probs = np.ones_like(lprobs) / len(lprobs)
+        else:
+            probs = softmax(lprobs / self.rerank_temp)
+        rerank_scores = np.array(
+            self.rerank_fn(hypos, probs, evidence_set=evidence_hypos)
+        )
 
         return rerank_scores.tolist()
 

@@ -26,6 +26,12 @@ def get_dataset(
     elif dataset.name == DatasetArgs.SupportedDataset.xsum.name:
         full_data = full_data.rename_column("document", "input")
         full_data = full_data.rename_column("summary", "output")
+    elif dataset.name == DatasetArgs.SupportedDataset.flores.name:
+        full_data = full_data.rename_column("sentence_nob_Latn", "input")
+        full_data = full_data.rename_column("sentence_eng_Latn", "output")
+    elif dataset.name == DatasetArgs.SupportedDataset.flores_isl.name:
+        full_data = full_data.rename_column("sentence_isl_Latn", "input")
+        full_data = full_data.rename_column("sentence_eng_Latn", "output")
 
     if shuffle:
         full_data = full_data.shuffle(seed=seed)

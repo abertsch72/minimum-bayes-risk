@@ -1,12 +1,16 @@
 import argparse
 import random
+import re
+import statistics
 from collections import defaultdict
 from functools import lru_cache
 from numbers import Number
 from typing import Dict, List
 
 import datasets
+import six
 import torch
+from sacrebleu.metrics import BLEU
 
 try:
     from bart_score.bart_score import BARTScorer
@@ -15,6 +19,36 @@ except ImportError as e:
 import numpy as np
 from rouge_score import rouge_scorer, tokenize
 from sacrebleu import sentence_chrf
+
+
+@lru_cache(maxsize=512)
+def cache_tokenize(text, stemmer):
+    """Tokenize input text into a list of tokens.
+
+    This approach aims to replicate the approach taken by Chin-Yew Lin in
+    the original ROUGE implementation.
+
+    Args:
+    text: A text blob to tokenize.
+    stemmer: An optional stemmer.
+
+    Returns:
+    A list of string tokens extracted from input text.
+    """
+    # Convert everything to lowercase.
+    text = text.lower()
+    # Replace any non-alpha-numeric characters with spaces.
+    text = re.sub(r"[^a-z0-9]+", " ", six.ensure_str(text))
+    tokens = re.split(r"\s+", text)
+    if stemmer:
+        # Only stem words more than 3 characters long.
+        tokens = [stemmer.stem(x) if len(x) > 3 else x for x in tokens]
+    # One final check to drop any empty or invalid tokens.
+    tokens = [x for x in tokens if re.match(r"^[a-z0-9]+$", six.ensure_str(x))]
+    return tokens
+
+
+tokenize.tokenize = cache_tokenize
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -36,12 +70,14 @@ def get_rouge_scorer(rouges):
     return rouge_scorer.RougeScorer(list(rouges), use_stemmer=True)
 
 
-def rescore_bertscore(topk_hypos, probs, bertscore=None):
+def rescore_bertscore(topk_hypos, probs, bertscore=None, evidence_set=None):
+    if evidence_set is None:
+        evidence_set = topk_hypos
     if bertscore is None:
         bertscore = get_bertscore()
     score = bertscore.compute(
         predictions=topk_hypos,
-        references=[topk_hypos for _ in range(len(topk_hypos))],
+        references=[evidence_set for _ in range(len(topk_hypos))],
         lang="en",
         device=device,
         batch_size=32,
@@ -49,7 +85,9 @@ def rescore_bertscore(topk_hypos, probs, bertscore=None):
     return score["f1"]
 
 
-def rescore_bartscore(topk_hypos, probs, bartscore=None):
+def rescore_bartscore(topk_hypos, probs, bartscore=None, evidence_set=None):
+    if evidence_set is None:
+        evidence_set = topk_hypos
     # TODO: possibly buggy currently
     if bartscore is None:
         bartscore = get_bartscore()
@@ -63,7 +101,11 @@ def rescore_bartscore(topk_hypos, probs, bartscore=None):
     )
 
 
-def rescore_rouge(topk_hypos, probs, rouge, eps=1e-4):
+def rescore_rouge(topk_hypos, probs, rouge, eps=1e-4, evidence_set=None):
+    same_evidence = False
+    if evidence_set is None:
+        same_evidence = True
+        evidence_set = topk_hypos
     if rouge is None:
         rouge = get_rouge_scorer(("rouge1", "rouge2"))
     elif not isinstance(rouge, rouge_scorer.RougeScorer):
@@ -71,23 +113,48 @@ def rescore_rouge(topk_hypos, probs, rouge, eps=1e-4):
         rouge = get_rouge_scorer(rouge)
 
     k = len(topk_hypos)
-    sim_matrix = np.ones((k, k))
+    m = len(evidence_set)
+    sim_matrix = np.zeros((k, m)) - 1
     for i in range(k):
-        for j in range(i + 1, k):
-            pair_scores = rouge.score(topk_hypos[i], topk_hypos[j])
+        for j in range(m):
+            if sim_matrix[i, j] != -1:
+                continue
+            pair_scores = rouge.score(topk_hypos[i], evidence_set[j])
             geo_mean = 1.0
             for score in pair_scores.values():
                 geo_mean *= score.fmeasure + eps
             geo_mean = geo_mean ** (1 / len(pair_scores))
-            sim_matrix[i, j] = sim_matrix[j, i] = geo_mean
+            sim_matrix[i, j] = geo_mean
+            if same_evidence:
+                sim_matrix[j, i] = geo_mean
     if probs is None:
         return sim_matrix.mean(axis=-1)
     return (sim_matrix @ probs[:, None])[:, 0]
 
 
-import statistics
+def rescore_bleu(topk_hypos, probs, max_ngram_order=4, evidence_set=None):
+    same_evidence = False
+    if evidence_set is None:
+        same_evidence = True
+        evidence_set = topk_hypos
 
-from sacrebleu.metrics import BLEU
+    bleu = BLEU(effective_order=True, max_ngram_order=max_ngram_order)
+
+    k = len(topk_hypos)
+    m = len(evidence_set)
+    sim_matrix = np.zeros((k, m)) - 1
+    for i in range(k):
+        for j in range(m):
+            if sim_matrix[i, j] != -1:
+                continue
+            pair_scores = bleu.sentence_score(topk_hypos[i], [evidence_set[j]])
+            sim_matrix[i, j] = pair_scores.score
+            if same_evidence:
+                sim_matrix[j, i] = pair_scores.score
+    if probs is None:
+        return sim_matrix.mean(axis=-1)
+    return (sim_matrix @ probs[:, None])[:, 0]
+
 
 bleu_scorer = BLEU(effective_order=True)
 
@@ -165,6 +232,16 @@ class Scorer(object):
         if "chrf" in metrics:
             self.chrf_scorer = lambda hypo, ref: sentence_chrf(hypo, [ref]).score
 
+        self.chrfpp_scorer = None
+        if "chrf++" in metrics:
+            self.chrfpp_scorer = lambda hypo, ref: sentence_chrf(
+                hypo, [ref], word_order=2
+            ).score
+
+        self.bleu_scorer = None
+        if "bleu" in metrics:
+            self.bleu_scorer = BLEU(effective_order=True)
+
     def score(self, gold, hypos) -> List[Score]:
         scores = [{} for _ in range(len(hypos))]
         if self.rouge_scorer is not None:
@@ -194,5 +271,13 @@ class Scorer(object):
             for i, hypo in enumerate(hypos):
                 chrf = self.chrf_scorer(hypo, gold) / 100.0
                 scores[i]["chrf"] = chrf
+        if self.chrfpp_scorer is not None:
+            for i, hypo in enumerate(hypos):
+                chrfpp = self.chrfpp_scorer(hypo, gold) / 100.0
+                scores[i]["chrf++"] = chrfpp
+        if self.bleu_scorer is not None:
+            for i, hypo in enumerate(hypos):
+                bleu = self.bleu_scorer.sentence_score(hypo, [gold]).score / 100.0
+                scores[i]["bleu"] = bleu
 
         return [Score(s) for s in scores]

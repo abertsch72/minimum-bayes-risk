@@ -1,3 +1,4 @@
+import sys
 from collections import defaultdict
 
 import jsonlines
@@ -45,7 +46,8 @@ class Metrics:
             start = self.zero_score
         return sum(seq, start=start) / len(seq)
 
-    def output(self):
+    def output(self, outfile=sys.stdout):
+        color = outfile == sys.stdout
         table_keys = [k for k, v in self.metrics.items() if isinstance(v[0], Score)]
         sorted_cols = sorted(self.metrics[table_keys[0]][0].score_dict)
         longest_key = max(len(k) for k in self.metrics)
@@ -53,7 +55,7 @@ class Metrics:
             " " * longest_key + " | " + " | ".join(k[:6].rjust(6) for k in sorted_cols)
         )
 
-        print(header)
+        print(header, file=outfile)
         output_dict = {}
         for key in table_keys:
             avg_metric = self.average(self.metrics[key])
@@ -61,16 +63,20 @@ class Metrics:
                 continue
             output_dict[key] = str(avg_metric)
             if "top" in key:
-                print(f"{C.OKBLUE}{key.ljust(longest_key)} | {avg_metric}{C.ENDC}")
+                print(
+                    f"{C.OKBLUE if color else ''}{key.ljust(longest_key)} | {avg_metric}{C.ENDC if color else ''}",
+                    file=outfile,
+                )
             else:
-                print(f"{key.ljust(longest_key)} | {avg_metric}")
-        print()
+                print(f"{key.ljust(longest_key)} | {avg_metric}", file=outfile)
+        print(file=outfile)
 
         for key, value in self.metrics.items():
             if key in table_keys:
                 continue
             print(
-                f"{key.ljust(longest_key)} | " + f"{self.average(value):.2f}".rjust(6)
+                f"{key.ljust(longest_key)} | " + f"{self.average(value):.2f}".rjust(6),
+                file=outfile,
             )
 
     def to_dict(self):

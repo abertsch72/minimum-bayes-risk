@@ -1,0 +1,38 @@
+{
+    "pipeline": {
+        "hf_model_name": "facebook/bart-large-xsum",
+        "hf_tokenizer_name": null,
+        "wandb": false,
+        "wandb_group": "xsum",
+        "run_name": "xsum-bart-large-diverse-beam",
+        "seed": 14,
+        "no_tqdm": false,
+        "no_gpu": false
+    },
+    "dataset": {
+        "dataset": "xsum",
+        "split": "val",
+        "start_index": 0,
+        "end_index": 1000,
+        "shuffle": true
+    },
+    "gen": {
+        "method_args": {
+            "num_beams": 50,
+            "num_beam_groups": 5,
+            "diversity_penalty": 0.3
+        },
+        "outfile": null,
+        "k": 50,
+        "max_length": 35
+    },
+    "rerank": {
+        "rerank_metric": "rouge1",
+        "rerank_temp": Infinity,
+        "rerank_geo_mean": false
+    },
+    "eval": {
+        "eval_metrics": "rouge1,rouge2,rougeL,chrf,bertscore",
+        "outfile": null
+    }
+}
