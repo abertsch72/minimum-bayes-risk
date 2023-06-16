@@ -25,7 +25,8 @@ from src.mbr_pipeline.list_gen.lattice_mbr import decode_hypos_from_lattice
 from src.mbr_pipeline.list_gen.lattice_sample import lattice_sample_k
 from src.mbr_pipeline.list_gen.sample import SamplingMethods, listgen
 from src.mbr_pipeline.list_gen.stochastic_beam_search import add_mixin, get_sbs_mixin
-from src.mbr_pipeline.list_gen.wide_beam_search import WideBeamSearchMixin
+
+# from src.mbr_pipeline.list_gen.wide_beam_search import WideBeamSearchMixin
 from src.mbr_pipeline.reranking.rerank import Reranker
 from src.mbr_pipeline.utils.choose_dataset import get_dataset
 

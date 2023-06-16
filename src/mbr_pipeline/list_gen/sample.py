@@ -38,7 +38,6 @@ class SamplingMethods:
             return_dict_in_generate=True,
         )
 
-    @staticmethod
     def stochastic_beam_search(
         input_ids,
         model: BartForConditionalGeneration,
@@ -67,9 +66,7 @@ class SamplingMethods:
 
     @staticmethod
     @torch.no_grad()
-    def model_sample(
-        input_ids, model, num_seqs, max_length, temp, top_p, sample_unique_seqs=False
-    ):
+    def model_sample(input_ids, model, num_seqs, max_length, temp, top_p):
         if num_seqs <= NUM_GEN_AT_ONCE:
             return model.generate(
                 input_ids,
@@ -145,6 +142,36 @@ class SamplingMethods:
             return output
 
 
+def get_reconstructed_scores(model, input_ids, outputs):
+    scores_on_cpu = tuple(score.cpu() for score in outputs.scores)
+    input_length = 1 if model.config.is_encoder_decoder else input_ids.shape[1]
+    if hasattr(outputs, "beam_indices"):  # beam search
+        transition_scores = model.compute_transition_scores(
+            outputs.sequences.cpu(),
+            scores_on_cpu,
+            outputs.beam_indices.cpu(),
+            normalize_logits=False,
+        ).numpy()
+
+        output_length = input_length + np.sum(transition_scores < 0, axis=1)
+        length_penalty = model.generation_config.length_penalty
+        reconstructed_scores = (
+            np.sum(transition_scores, axis=1) / (output_length**length_penalty)
+        ).tolist()
+    else:  # not beam search
+        transition_scores = model.compute_transition_scores(
+            outputs.sequences.cpu(), scores_on_cpu, normalize_logits=True
+        ).numpy()
+
+        output_length = input_length + np.sum(1 - np.isinf(transition_scores), axis=1)
+        transition_scores[np.isinf(transition_scores)] = 0.0
+        length_penalty = model.generation_config.length_penalty
+        reconstructed_scores = (
+            np.sum(transition_scores, axis=1) / (output_length**length_penalty)
+        ).tolist()
+    return reconstructed_scores
+
+
 def listgen(
     strategy_fn: Callable,
     tokenizer,
@@ -155,7 +182,6 @@ def listgen(
     strategy_args,
     model: PreTrainedModel = None,
     lattices: Generator[Tuple[Lattice, Any], None, None] = None,
-    sample_unique_list=False,
 ):
     all_hypos = []
 
@@ -177,7 +203,7 @@ def listgen(
                     num_seqs=num_seqs,
                     output=output,
                     max_length=max_length,
-                    **strategy_args,
+                    **strategy_args
                 )
             )
     else:
@@ -201,85 +227,34 @@ def listgen(
                 max_length=max_source_len,
             ).to(device)
 
-            outputs_tokens = {}
+            outputs = strategy_fn(
+                input_ids,
+                model,
+                num_seqs=num_seqs,
+                max_length=max_length,
+                **strategy_args
+            )  #
 
-            def continue_list_gen(prev_unique={}):
-                outputs = strategy_fn(
-                    input_ids,
-                    model,
-                    num_seqs=num_seqs,
-                    max_length=max_length,
-                    **strategy_args,
-                )  #
+            # get sequence scores by summing generated token scores and applying length penality
+            # Tip: recomputing the scores is only guaranteed to match with `normalize_logits=False`.
 
-                # get sequence scores by summing generated token scores and applying length penality
-                # Tip: recomputing the scores is only guaranteed to match with `normalize_logits=False`.
-                scores_on_cpu = tuple(score.cpu() for score in outputs.scores)
-                if hasattr(outputs, "beam_indices"):  # beam search
-                    transition_scores = model.compute_transition_scores(
-                        outputs.sequences.cpu(),
-                        scores_on_cpu,
-                        outputs.beam_indices.cpu(),
-                        normalize_logits=False,
-                    ).numpy()
+            reconstructed_scores = get_reconstructed_scores(model, input_ids, outputs)
 
-                    # this way of recomputing scores only works for beam search
-                    output_length = input_ids.shape[0] + np.sum(
-                        transition_scores < 0, axis=1
-                    )
-                    length_penalty = model.generation_config.length_penalty
-                    reconstructed_scores = (
-                        np.sum(transition_scores, axis=1)
-                        / (output_length**length_penalty)
-                    ).tolist()
-                else:  # not beam search
-                    transition_scores = model.compute_transition_scores(
-                        outputs.sequences.cpu(), scores_on_cpu, normalize_logits=True
-                    ).numpy()
+            outputs_decoded = tokenizer.batch_decode(
+                outputs.sequences, skip_special_tokens=True
+            )
 
-                    transition_scores[np.isinf(transition_scores)] = 0.0
-                    output_length = input_ids.shape[0] + np.sum(
-                        1 - np.isinf(transition_scores), axis=1
-                    )
-                    length_penalty = model.generation_config.length_penalty
-                    reconstructed_scores = (
-                        np.sum(transition_scores, axis=1)
-                        / (output_length**length_penalty)
-                    ).tolist()
-
-                # todo: hash outputs.sequences
-                outputs_decoded = tokenizer.batch_decode(
-                    outputs.sequences, skip_special_tokens=True
-                )
-
-                if sample_unique_list:
-                    # TODO: track total number of samples
-                    # TODO: dedup at token level instead
-                    scores_for_unq = dict(zip(outputs_decoded, reconstructed_scores))
-                    previous_unq = dict(
-                        zip(outputs["hypos"], outputs["reconstructed_scores"])
-                    )
-                    scores_for_unq.update(
-                        previous_unq
-                    )  # overrides any duplicates here with the older version
-                    # debug
-                    print(
-                        f"The total number of new hypotheses is {len(scores_for_unq) - len(previous_unq)} for a total of {len(scores_for_unq)} generated!"
-                    )
-                    outputs_decoded = scores_for_unq.keys()
-                    reconstructed_scores = [
-                        scores_for_unq[output] for output in outputs_decoded
-                    ]
-
-                outputs["hypos"] = outputs["hypos"].extend(outputs_decoded)
-                outputs["lprobs"] = outputs["lprobs"].extend(reconstructed_scores)
-
-                return outputs
-
-            while len(outputs["hypos"]) < num_seqs:
-                outputs = continue_list_gen(outputs)
-
-            outputs["num_unique"] = len(set(outputs["hypos"]))
+            # if i == 0:
+            #     import pdb; pdb.set_trace()
+            #     print('\n'.join(outputs_decoded))
+            outputs = {
+                "document": dp,
+                "gold": dataset["output"][i],
+                "id": dataset["id"][i],
+                "hypos": outputs_decoded,
+                "num_unique": len(set(outputs)),
+                "lprobs": reconstructed_scores,
+            }  # TODO: add lprobs in
             all_hypos.append(outputs)
 
     return all_hypos
