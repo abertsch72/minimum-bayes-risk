@@ -2,12 +2,10 @@
 /mt-data
 /notebooks
 .html
-.txt
 *.csv
 *.pdf
 # *.json
 *.html
-*.txt
 *.log
 *.pkl
 
@@ -152,3 +150,6 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+new-sampling_outputs/
+/new-sampling_outputs
