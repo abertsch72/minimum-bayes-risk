@@ -2,10 +2,10 @@
     "pipeline": {
         "hf_model_name": "facebook/bart-large-cnn",
         "hf_tokenizer_name": null,
-        "wandb": true,
+        "wandb": false,
         "wandb_group": "cnndm",
         "run_name": "cnndm-bart-large-beam",
-        "seed": 101,
+        "seed": 14,
         "no_tqdm": false,
         "no_gpu": false
     },
@@ -13,7 +13,8 @@
         "dataset": "cnndm",
         "split": "val",
         "start_index": 0,
-        "end_index": -1
+        "end_index": 1000,
+        "shuffle": true
     },
     "gen": {
         "method_args": {
@@ -24,12 +25,13 @@
         "max_length": 70
     },
     "rerank": {
-        "rerank_metric": null,
-        "rerank_temp": Infinity,
-        "rerank_geo_mean": false
+        "rerank_metric": "rouge1",
+        "rerank_temp": 0.5,
+        "rerank_geo_mean": false,
+        "evidence_set_file": "new-sampling_outputs/cnndm/facebook-bart-large-cnn/100/temp-temp=2.0top_p=1.0epsilon_cutoff=0.0.jsonl"
     },
     "eval": {
-        "eval_metrics": "rouge1,rouge2,rougeL,chrf",
+        "eval_metrics": "rouge1,rouge2,rougeL,chrf,bertscore",
         "outfile": null
     }
 }

@@ -52,6 +52,7 @@ class Reranker:
 
     def rerank(self, item: dict, evidence_set: List[dict] = None) -> List[int]:
         hypos = item["hypos"]
+
         lprobs = evidence_hypos = None
         if evidence_set is not None:
             evidence_hypos = evidence_set["hypos"]
@@ -59,7 +60,7 @@ class Reranker:
                 lprobs = np.array(evidence_set["lprobs"])
         elif "lprobs" in item:
             lprobs = np.array(item["lprobs"])
-        if lprobs is None:
+        if lprobs is None or self.rank_by_freq:
             lprobs = np.ones_like(lprobs)
 
         if self.rerank_temp == float("inf") or self.rank_by_freq:

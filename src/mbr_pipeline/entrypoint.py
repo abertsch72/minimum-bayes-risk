@@ -139,7 +139,7 @@ def pipeline(args: Args):
 
     if args.gen.outfile is None:
         thisdir = [
-            "new-sampling_outputs",
+            "fixed-logprobs-sampling_outputs",
             args.dataset.dataset.name,
             args.pipeline.hf_model_name.replace("/", "-"),
             str(args.gen.k),

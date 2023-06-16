@@ -3,7 +3,6 @@ import sys
 
 import jsonlines
 
-filename = sys.argv[1]
 
 def get_scores(filename):
     score_info = ""
