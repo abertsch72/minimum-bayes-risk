@@ -54,7 +54,6 @@ class SamplingMethods:
         return model.generate(
             input_ids,
             max_length=max_length,
-            temperature=temp,
             num_beams=num_beams,
             num_return_sequences=num_seqs,
             num_beam_groups=num_beam_groups,
@@ -230,7 +229,8 @@ def listgen(
             ).to(device)
 
 
-            def continue_list_gen(outputs={}):
+            outputs_tokens = {}
+            def continue_list_gen(outputs={}, outputs_tokens={}):
                 model_outputs = strategy_fn(
                     input_ids,
                     model,
@@ -258,7 +258,7 @@ def listgen(
                 length_penalty = model.generation_config.length_penalty
 
 
-                reconstructed_scores = get_reconstructed_scores(model, input_ids, outputs).tolist()
+                reconstructed_scores = get_reconstructed_scores(model, input_ids, model_outputs)
 
 
                 # todo: hash outputs.sequences
@@ -282,7 +282,7 @@ def listgen(
                 outputs["hypos"] = outputs_decoded
                 outputs["lprobs"] = reconstructed_scores
 
-                return outputs
+                return outputs, outputs_tokens
             
             outputs = {
                 "document": dp,
@@ -290,7 +290,7 @@ def listgen(
                 "id": dataset["id"][i],
             }  # TODO: add lprobs in
 
-            outputs = continue_list_gen(outputs)
+            outputs, outputs_tokens = continue_list_gen(outputs, outputs_tokens)
 
             if unique_k:
                 while outputs['num_unique'] < num_seqs:

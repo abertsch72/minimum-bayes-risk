@@ -274,6 +274,8 @@ class Args:
         rank_by_freq: Optional[bool] = field(
             default=False,
             metadata={"help": "use frequency of hypotheses instead of lprobs to rank"},
+        )
+
         evidence_set_file: Optional[str] = field(
             default=None,
             metadata={
