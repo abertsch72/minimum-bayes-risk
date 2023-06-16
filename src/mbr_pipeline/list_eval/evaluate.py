@@ -99,8 +99,14 @@ class Metrics:
     def evaluate(self, item):
         gold = item["gold"]
         hypos = item["hypos"]
+        cached_scores = item.get("cached_scores", [])
         geomeans = []
-        scores = self.scorer.score(gold, hypos)
+        if cached_scores == []:
+            scores = self.scorer.score(gold, hypos)
+        else:
+            scores = cached_scores
+        
+        #TODO: actually cache scores in this location!
 
         geomeans = []
         for score in scores:

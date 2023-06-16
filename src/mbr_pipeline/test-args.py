@@ -1,24 +1,27 @@
-from args import Args, load_args, save_args
+from src.mbr_pipeline.args import Args, load_args, save_args
+from src.mbr_pipeline.entrypoint import pipeline
 
 args = Args(
-    pipeline=Args.PipelineArgs(hf_model_name="facebook/bart-base"),
+    pipeline=Args.PipelineArgs(hf_model_name="ainize/bart-base-cnn"),
     dataset=Args.DatasetArgs(
-        dataset=Args.DatasetArgs.SupportedDataset.samsum,
+        dataset=Args.DatasetArgs.SupportedDataset.cnndm,
         split=Args.DatasetArgs.DataSplit.val,
     ),
     gen=Args.ListGenArgs(
-        method_args=Args.ListGenArgs.BeamSearchArgs(num_beams=10), max_length=50
+        method_args=Args.ListGenArgs.ModelSamplingArgs(temp=0.1), max_length=75, unique_k=True, k=10
     ),
     rerank=Args.ListRerankArgs(),
     eval=Args.EvalArgs(),
 )
+
+pipeline(args)
 
 # example of dumping args to file
 save_args(args, "configs/config-test.json")
 
 # example of loading args from file
 load_args("configs/config-test.json")
-
+"""
 
 # make a large set of args
 from entrypoint import pipeline
@@ -43,7 +46,7 @@ pipeline(args)
 count = 0
 models_by_dataset = {
     "cnndm": ["facebook/bart-large-cnn", "ainize/bart-base-cnn"],
-    "samsum": [
+    Args.DatasetArgs.SupportedDataset.samsum: [
         "lidiya/bart-base-samsum",
         "linydub/bart-large-samsum",
         "Chikashi/t5-small-finetuned-cnndm",
@@ -51,12 +54,12 @@ models_by_dataset = {
         "navjordj/t5-large-cnndm",
     ],
 }
-len_by_dataset = {"cnndm": 70, "samsum": 60}
-for dataset in ["cnndm", "samsum"]:
+len_by_dataset = {"cnndm": 70, Args.DatasetArgs.SupportedDataset.samsum: 60}
+for dataset in [Args.DatasetArgs.SupportedDataset.samsum]:
     length = len_by_dataset[dataset]
     for model in models_by_dataset[dataset]:
         for gen_strat in [
-            Args.ListGenArgs.ModelSamplingArgs(temp=0.1),
+            Args.ListGenArgs.BeamSearchArgs(num_beams=50),
             Args.ListGenArgs.ModelSamplingArgs(temp=0.7),
             Args.ListGenArgs.ModelSamplingArgs(top_p=0.3),
             Args.ListGenArgs.ModelSamplingArgs(top_p=0.5),
@@ -84,11 +87,10 @@ for dataset in ["cnndm", "samsum"]:
                             method_args=gen_strat, max_length=length, k=50
                         ),
                         rerank=Args.ListRerankArgs(
-                            rerank_metric=rerank, rerank_geo_mean=geo
+                            rerank_metric=rerank, rerank_geo_mean=geo, rank_by_freq=True,
                         ),
                         eval=Args.EvalArgs(
                             eval_metrics="rouge1,rouge2,rougeL,chrf,bertscore"
                         ),
                     )
                     pipeline(args)
-"""
