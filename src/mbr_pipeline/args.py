@@ -289,7 +289,7 @@ class Args:
         """
 
         eval_metrics: str = field(
-            default="rouge1,rouge2,rougeL,chrf",
+            default=None, #"rouge1,rouge2,rougeL,chrf",
             metadata={"help": "comma-separated list of metrics to evaluate hypos on"},
         )
         outfile: Optional[str] = field(default=None)
@@ -298,7 +298,7 @@ class Args:
     dataset: DatasetArgs
     gen: Optional[ListGenArgs]
     rerank: Optional[ListRerankArgs]
-    eval: Optional[EvalArgs]
+    eval: Optional[EvalArgs] = field(default=None)
 
 
 def load_args(config_file: str) -> Args:
