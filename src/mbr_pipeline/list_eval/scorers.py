@@ -21,7 +21,7 @@ from rouge_score import rouge_scorer, tokenize
 from sacrebleu import sentence_chrf
 
 
-@lru_cache(maxsize=512)
+@lru_cache(maxsize=1600)
 def cache_tokenize(text, stemmer):
     """Tokenize input text into a list of tokens.
 

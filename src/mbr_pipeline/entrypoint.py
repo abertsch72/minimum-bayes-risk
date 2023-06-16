@@ -218,6 +218,12 @@ def pipeline(args: Args):
             with jsonlines.open(args.rerank.evidence_set_file, "r") as f:
                 evidence_outputs = list(f.iter())
 
+            if args.rerank.num_evidence is not None:
+                for out in evidence_outputs:
+                    out["hypos"] = out["hypos"][: args.rerank.num_evidence]
+                    out["lprobs"] = out["lprobs"][: args.rerank.num_evidence]
+                rerank_metric += f"_first{args.rerank.num_evidence}"
+
         print("Rerank metric:", rerank_metric)
 
         for idx, line in enumerate(tqdm(sampling_outputs)):

@@ -107,6 +107,7 @@ class Args:
 
             temp: Optional[float] = field(default=1.0)
             top_p: Optional[float] = field(default=1.0)
+            epsilon_cutoff: Optional[float] = field(default=0.0)
 
         @dataclass_json
         @dataclass
@@ -270,6 +271,11 @@ class Args:
             metadata={"help": "use geo mean of rouges up to specified order"},
         )
 
+        rank_by_freq: Optional[bool] = field(
+            default=False,
+            metadata={"help": "use frequency of hypotheses instead of lprobs to rank"},
+        )
+
         evidence_set_file: Optional[str] = field(
             default=None,
             metadata={
@@ -281,6 +287,13 @@ class Args:
             metadata={"help": "use frequency of hypotheses instead of lprobs to rank"},
         )
 
+        num_evidence: Optional[int] = field(
+            default=None,
+            metadata={
+                "help": "If `evidence_set_file` is given, the first `num_evidence` hypos in it will be used as the evidence set."
+            },
+        )
+
     @dataclass_json
     @dataclass
     class EvalArgs:
@@ -289,7 +302,7 @@ class Args:
         """
 
         eval_metrics: str = field(
-            default=None, #"rouge1,rouge2,rougeL,chrf",
+            default=None,  # "rouge1,rouge2,rougeL,chrf",
             metadata={"help": "comma-separated list of metrics to evaluate hypos on"},
         )
         outfile: Optional[str] = field(default=None)

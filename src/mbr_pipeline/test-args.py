@@ -8,7 +8,10 @@ args = Args(
         split=Args.DatasetArgs.DataSplit.val,
     ),
     gen=Args.ListGenArgs(
-        method_args=Args.ListGenArgs.ModelSamplingArgs(temp=0.1), max_length=75, unique_k=True, k=10
+        method_args=Args.ListGenArgs.ModelSamplingArgs(temp=0.1),
+        max_length=75,
+        unique_k=True,
+        k=10,
     ),
     rerank=Args.ListRerankArgs(),
     eval=Args.EvalArgs(),
@@ -80,7 +83,9 @@ for dataset in [Args.DatasetArgs.SupportedDataset.samsum]:
                             method_args=gen_strat, max_length=length, k=50
                         ),
                         rerank=Args.ListRerankArgs(
-                            rerank_metric=rerank, rerank_geo_mean=geo, rank_by_freq=True,
+                            rerank_metric=rerank,
+                            rerank_geo_mean=geo,
+                            rank_by_freq=True,
                         ),
                         eval=Args.EvalArgs(
                             eval_metrics="rouge1,rouge2,rougeL,chrf,bertscore"

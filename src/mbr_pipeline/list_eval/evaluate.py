@@ -111,8 +111,8 @@ class Metrics:
             scores = self.scorer.score(gold, hypos)
         else:
             scores = cached_scores
-        
-        #TODO: actually cache scores in this location!
+
+        # TODO: actually cache scores in this location!
 
         geomeans = []
         for score in scores:
