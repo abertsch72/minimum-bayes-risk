@@ -20,9 +20,17 @@ from src.mbr_pipeline.list_eval.scorers import (
 
 
 class Reranker:
-    def __init__(self, rerank_temp, rerank_metric, rerank_geo_mean, rank_by_freq):
+    def __init__(
+        self,
+        rerank_temp,
+        rerank_metric,
+        rerank_geo_mean,
+        rank_by_freq,
+        importance_sample,
+    ):
         self.rerank_temp = rerank_temp
         self.rank_by_freq = rank_by_freq
+        self.importance_sample = importance_sample
 
         self.rerank_metric = (rerank_metric,)
         if "rouge" in rerank_metric:
@@ -53,22 +61,36 @@ class Reranker:
     def rerank(self, item: dict, evidence_set: List[dict] = None) -> List[int]:
         hypos = item["hypos"]
 
-        lprobs = evidence_hypos = None
+        lprobs = true_lprobs = evidence_hypos = None
         if evidence_set is not None:
             evidence_hypos = evidence_set["hypos"]
             if "lprobs" in evidence_set:
                 lprobs = np.array(evidence_set["lprobs"])
+            if self.importance_sample:
+                assert "unbiased_lprobs" in evidence_set
+                true_lprobs = np.array(evidence_set["unbiased_lprobs"])
         elif "lprobs" in item:
             lprobs = np.array(item["lprobs"])
+            if self.importance_sample:
+                assert "unbiased_lprobs" in item
+                true_lprobs = np.array(item["unbiased_lprobs"])
+
         if lprobs is None or self.rank_by_freq:
             lprobs = np.ones_like(lprobs)
 
-        if self.rerank_temp == float("inf") or self.rank_by_freq:
+        if self.importance_sample:
+            assert true_lprobs is not None
+            # correct up to a constant of proportionality
+            probs = softmax(true_lprobs - lprobs)
+        elif self.rerank_temp == float("inf") or self.rank_by_freq:
             probs = np.ones_like(lprobs) / len(lprobs)
         else:
             probs = softmax(lprobs / self.rerank_temp)
+
         rerank_scores = np.array(
-            self.rerank_fn(hypos, probs, evidence_set=evidence_hypos)
+            self.rerank_fn(
+                hypos, probs, true_probs=true_probs, evidence_set=evidence_hypos
+            )
         )
 
         return rerank_scores.tolist()

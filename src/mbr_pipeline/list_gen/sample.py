@@ -145,8 +145,7 @@ class SamplingMethods:
             return output
 
 
-def get_reconstructed_scores(model, input_ids, outputs):
-    scores_on_cpu = tuple(score.cpu() for score in outputs.scores)
+def get_reconstructed_scores(model, input_ids, outputs, scores_on_cpu):
     input_length = 1 if model.config.is_encoder_decoder else input_ids.shape[1]
     if hasattr(outputs, "beam_indices"):  # beam search
         transition_scores = model.compute_transition_scores(
@@ -261,15 +260,30 @@ def listgen(
                 # length_penalty = model.generation_config.length_penalty
 
                 reconstructed_scores = get_reconstructed_scores(
-                    model, input_ids, model_outputs
+                    model,
+                    input_ids,
+                    model_outputs,
+                    tuple(score.cpu() for score in model_outputs.scores),
                 )
+
+                reconstructed_unbiased_scores = None
+                if hasattr(model_outputs, "unbiased_scores"):
+                    reconstructed_unbiased_scores = get_reconstructed_scores(
+                        model,
+                        input_ids,
+                        model_outputs,
+                        tuple(score.cpu() for score in model_outputs.unbiased_scores),
+                    )
 
                 # todo: hash outputs.sequences
                 outputs_decoded = tokenizer.batch_decode(
                     model_outputs.sequences, skip_special_tokens=True
                 )
                 hashes = [hash(tuple(seq)) for seq in model_outputs.sequences]
-                saved_out = zip(outputs_decoded, reconstructed_scores)
+                saved_out = zip(
+                    outputs_decoded,
+                    zip(reconstructed_scores, reconstructed_unbiased_scores),
+                )
                 these_outputs = list(zip(hashes, saved_out))
                 outputs_tokens.update(these_outputs)
 
@@ -285,11 +299,15 @@ def listgen(
                         output[0] for output in list(outputs_tokens.values())
                     ]
                     reconstructed_scores = [
-                        output[1] for output in list(outputs_tokens.values())
+                        output[1][0] for output in list(outputs_tokens.values())
+                    ]
+                    reconstructed_unbiased_scores = [
+                        output[1][1] for output in list(outputs_tokens.values())
                     ]
 
                 outputs["hypos"] = outputs_decoded
                 outputs["lprobs"] = reconstructed_scores
+                outputs["unbiased_lprobs"] = reconstructed_unbiased_scores
 
                 return outputs
 

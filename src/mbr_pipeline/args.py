@@ -294,6 +294,13 @@ class Args:
             },
         )
 
+        importance_sample: Optional[bool] = field(
+            default=False,
+            metadata={
+                "help": "do importance sampling; requires evidence set to have `unbiased_lprobs` key"
+            },
+        )
+
     @dataclass_json
     @dataclass
     class EvalArgs:

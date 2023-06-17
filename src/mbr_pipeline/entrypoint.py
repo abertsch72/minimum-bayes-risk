@@ -16,14 +16,11 @@ from transformers import (
 import wandb
 from src.mbr_pipeline.args import Args, load_args
 from src.mbr_pipeline.list_eval.evaluate import Metrics
-from src.mbr_pipeline.list_gen.fast_samplers import (
-    BartForConditionalGenerationFastSample,
-    BartForConditionalGenerationGumbelSample,
-)
 from src.mbr_pipeline.list_gen.lattice import Lattice
 from src.mbr_pipeline.list_gen.lattice_mbr import decode_hypos_from_lattice
 from src.mbr_pipeline.list_gen.lattice_sample import lattice_sample_k
 from src.mbr_pipeline.list_gen.sample import SamplingMethods, listgen
+from src.mbr_pipeline.list_gen.sampler_with_scores import SamplerWithScoresMixin
 from src.mbr_pipeline.list_gen.stochastic_beam_search import add_mixin, get_sbs_mixin
 
 # from src.mbr_pipeline.list_gen.wide_beam_search import WideBeamSearchMixin
@@ -120,9 +117,8 @@ def pipeline(args: Args):
                 BASE_MODEL_CLS, get_sbs_mixin(args.gen.method_args.memoryless)
             )
         else:
-            if args.gen.method_args.num_beams > 100:
-                BASE_MODEL_CLS = get_base_model_cls(args.dataset.dataset)
-                MODEL_CLS = add_mixin(BASE_MODEL_CLS, WideBeamSearchMixin)
+            # if args.gen.method_args.num_beams > 100:
+            #     BASE_MODEL_CLS = get_base_model_cls(args.dataset.dataset)
             method_name = "beam"
 
         model = MODEL_CLS.from_pretrained(args.pipeline.hf_model_name).to(device)
@@ -130,7 +126,8 @@ def pipeline(args: Args):
     else:
         # elif args.gen.method_args == Args.ListGenArgs.ModelSamplingArgs():
         # TODO: handle temp + nucl differently
-        MODEL_CLS = AutoModelForSeq2SeqLM
+        BASE_MODEL_CLS = get_base_model_cls(args.dataset.dataset)
+        MODEL_CLS = add_mixin(BASE_MODEL_CLS, SamplerWithScoresMixin)
         model = MODEL_CLS.from_pretrained(args.pipeline.hf_model_name).to(device)
         strategy_fn = SamplingMethods.model_sample
         method_name = "temp" if args.gen.method_args.top_p == 1.0 else "top-p"
@@ -139,7 +136,7 @@ def pipeline(args: Args):
 
     if args.gen.outfile is None:
         thisdir = [
-            "fixed-logprobs-sampling_outputs",
+            "new-sampling_outputs",
             args.dataset.dataset.name,
             args.pipeline.hf_model_name.replace("/", "-"),
             str(args.gen.k),
@@ -200,6 +197,7 @@ def pipeline(args: Args):
             rerank_metric=args.rerank.rerank_metric,
             rerank_geo_mean=args.rerank.rerank_geo_mean,
             rank_by_freq=args.rerank.rank_by_freq,
+            importance_sample=args.rerank.importance_sample,
         )
 
         rerank_metric = args.rerank.rerank_metric
