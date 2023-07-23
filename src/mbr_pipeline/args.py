@@ -301,6 +301,11 @@ class Args:
             },
         )
 
+        length_corrected: Optional[bool] = field(
+            default=False,
+            metadata={"help": "Use distribution NOT divided by sequence length"},
+        )
+
     @dataclass_json
     @dataclass
     class EvalArgs:
@@ -308,7 +313,7 @@ class Args:
         Arguments pertaining to topk-list evaluation
         """
 
-        eval_metrics: str = field(
+        eval_metrics: Optional[str] = field(
             default=None,  # "rouge1,rouge2,rougeL,chrf",
             metadata={"help": "comma-separated list of metrics to evaluate hypos on"},
         )

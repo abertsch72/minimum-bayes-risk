@@ -110,9 +110,10 @@ class Metrics:
         if cached_scores == []:
             scores = self.scorer.score(gold, hypos)
         else:
-            scores = cached_scores
+            scores = [Score(d["score_dict"], d["is_pct"]) for d in cached_scores]
 
         # TODO: actually cache scores in this location!
+        item["cached_scores"] = [score.__dict__ for score in scores]
 
         geomeans = []
         for score in scores:

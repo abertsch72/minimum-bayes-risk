@@ -18,6 +18,7 @@ tokenizer = None
 model = None
 dataset = None
 dec_prefix = None
+logger = None
 
 if is_run_pipeline:  # only setup in if we're running the main pipeline script
     args, grouped_args = process_arg()
@@ -30,6 +31,7 @@ if is_run_pipeline:  # only setup in if we're running the main pipeline script
     dict_io = render_address(root=args.path_output)
     setup_logger(name=f"{args.task}_{args.model}_{args.dataset}")
     print(args)
+    print("Running run_pipeline.py")
     tokenizer, model, dataset, dec_prefix = setup_model(
         task=args.task,
         dataset=args.dataset,

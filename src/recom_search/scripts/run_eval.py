@@ -1,5 +1,6 @@
 import os
 import pickle
+import signal
 from collections import defaultdict
 from pathlib import Path
 
@@ -14,6 +15,12 @@ from src.recom_search.model.model_bfs_zip import bfs_rcb_any
 from src.recom_search.model.model_output import SearchModelOutput
 from src.recom_search.model.setup import data_set, model, tokenizer
 from src.recom_search.model.util import *
+
+eval_logger = logging.getLogger(__name__)
+eval_logger.setLevel(logging.DEBUG)
+fh = logging.FileHandler("run_eval.log", mode="a")
+fh.setLevel(logging.DEBUG)
+eval_logger.addHandler(fh)
 
 
 def adjust_batch_size(max_len, task, dataset):
@@ -240,7 +247,7 @@ def run_baseline(args, model, inp, dec_prefix, adjust=True):
 
 
 def run_model(args, tokenizer, model, dataset, dec_prefix, wt_dir):
-    # logging.info(args)
+    eval_logger.log(logging.INFO, args)
     nexample = args.nexample
     startexample = args.startexample
     cnt = 0
@@ -328,15 +335,40 @@ def run_model(args, tokenizer, model, dataset, dec_prefix, wt_dir):
         elif args.model == "sample_recom":
             output = run_recom_sample(args, model, inp, dec_prefix, param_sim_function)
         elif args.model == "bfs_recom":
-            output = run_bfs_recombination(
-                args,
-                model,
-                tokenizer,
-                inp,
-                dec_prefix,
-                param_sim_function,
-                config_search=config_search,
-            )
+            num_failures = 0
+            while True:
+
+                def alarm_handler(num, stack):
+                    print("Received SIGALRM")
+                    eval_logger.log(logging.CRITICAL, "Received SIGALRM")
+                    raise TimeoutError("Timed out after 300 seconds.")
+
+                signal.signal(signal.SIGALRM, alarm_handler)
+                signal.alarm(300)
+                try:
+                    output = run_bfs_recombination(
+                        args,
+                        model,
+                        tokenizer,
+                        inp,
+                        dec_prefix,
+                        param_sim_function,
+                        config_search=config_search,
+                    )
+                    signal.alarm(0)
+                    break
+                except TimeoutError as ex:
+                    num_failures += 1
+                    print(
+                        "Timed out after 300 seconds. Number of failures so far:",
+                        num_failures,
+                    )
+                    eval_logger.log(
+                        logging.CRITICAL,
+                        f"Timed out after 300 seconds. Number of failures so far: {num_failures}",
+                    )
+                    if num_failures == 3:
+                        raise ex
         elif args.model == "bfs":
             output = run_bfs(
                 args,
@@ -354,6 +386,8 @@ def run_model(args, tokenizer, model, dataset, dec_prefix, wt_dir):
 
         with open(os.path.join(wt_dir, config_name, fname), "wb") as fd:
             pickle.dump(output, fd)
+
+        del output
 
         # break
         if cnt >= nexample:

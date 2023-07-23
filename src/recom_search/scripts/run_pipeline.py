@@ -45,18 +45,18 @@ if __name__ == "__main__":
     logging.info(f"Config name: {config_name}")
     run_model(args, tokenizer, model, dataset, dec_prefix, dict_io["data"])
     del model
-    logging.info(f"Done with making data. Start analyzing data.")
-    analyze_main(
-        config_name, dict_io["data"], dict_io["text"], dict_io["stat"], dict_io["html"]
-    )
-    logging.info("Done with initial analysis")
-    # second stage analysis: run gector model, get number of finished nodes from data, analyze model parameter, gather results to json and a latex table
-    deep_analyze_main(
-        args,
-        config_name,
-        dict_io["data"],
-        dict_io["text"],
-        dict_io["stat"],
-        dict_io["table"],
-    )
+    # logging.info(f"Done with making data. Start analyzing data.")
+    # analyze_main(
+    #     config_name, dict_io["data"], dict_io["text"], dict_io["stat"], dict_io["html"]
+    # )
+    # logging.info("Done with initial analysis")
+    # # second stage analysis: run gector model, get number of finished nodes from data, analyze model parameter, gather results to json and a latex table
+    # deep_analyze_main(
+    #     args,
+    #     config_name,
+    #     dict_io["data"],
+    #     dict_io["text"],
+    #     dict_io["stat"],
+    #     dict_io["table"],
+    # )
     logging.info("Done with all. bye bye")
