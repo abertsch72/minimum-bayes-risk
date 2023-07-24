@@ -117,22 +117,26 @@ class Reranker:
                 true_lprobs = np.array(evidence_set["unbiased_lprobs"])
         elif "lprobs" in item:
             lprobs = np.array(item["lprobs"])
-            if self.importance_sample:
+            if self.importance_sample and not self.length_corrected:
                 assert "unbiased_lprobs" in item
                 true_lprobs = np.array(item["unbiased_lprobs"])
                 lprobs = true_lprobs - lprobs
 
         if lprobs is not None and self.length_corrected:
             assert tokenizer is not None
-            old_lprobs = lprobs
+            if "unbiased_lprobs" in item:
+                lprobs_corrected = np.array(item["unbiased_lprobs"])
+            else:
+                lprobs_corrected = lprobs
             evidence_tokenized = tokenizer(
                 evidence_hypos if evidence_hypos is not None else hypos
             )["input_ids"]
             lengths = np.array([len(h) + 1 for h in evidence_tokenized])
-            lprobs = lprobs * (lengths**self.length_penalty)
-            # lprobs = lprobs * (lengths)
+            lprobs_uncorrected = lprobs * (
+                lengths**self.length_penalty
+            )  # uncorrected
             ### experimental code
-            # lprobs = old_lprobs / lprobs
+            lprobs = lprobs_corrected - lprobs_uncorrected
             ### experimental code
 
         if lprobs is None or self.rank_by_freq:

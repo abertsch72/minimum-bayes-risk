@@ -252,6 +252,11 @@ def pipeline(args: Args):
                     # out['hypos'] = [h for h, _, _ in best]
                     # out['lprobs'] = [s for _, s, _ in best]
 
+                    rand_perm = np.random.permutation(len(out["hypos"]))
+
+                    out["hypos"] = [out["hypos"][i] for i in rand_perm]
+                    out["lprobs"] = [out["lprobs"][i] for i in rand_perm]
+
                     out["hypos"] = out["hypos"][: args.rerank.num_evidence]
                     out["lprobs"] = out["lprobs"][: args.rerank.num_evidence]
                     # out["hypos"], out["lprobs"] = get_oracle_best(out["hypos"], out["lprobs"], out['gold'], args.rerank.num_evidence)
