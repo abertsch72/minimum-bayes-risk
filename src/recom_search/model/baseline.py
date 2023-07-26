@@ -5,7 +5,7 @@ from typing import List
 
 import torch
 from torch.distributions.categorical import Categorical
-from transformers.generation_logits_process import TopPLogitsWarper
+from transformers.generation.utils import TopPLogitsWarper
 
 from src.recom_search.model.beam_node import BeamNode
 from src.recom_search.model.beam_node_ez import BeamNodeEz

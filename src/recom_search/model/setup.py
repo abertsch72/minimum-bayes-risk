@@ -89,7 +89,7 @@ def setup_model(
         elif dataset == "cnndm":
             # raise NotImplementedError("not supported")
             dataset = load_dataset(
-                "ccdv/cnn_dailymail", "3.0.0", split="validation", cache_dir=cache_dir
+                "ccdv/cnn_dailymail", "3.0.0", split="test", cache_dir=cache_dir
             )
             print("CNNDM mean token in ref 56")
         dec_prefix = [tokenizer.eos_token_id]

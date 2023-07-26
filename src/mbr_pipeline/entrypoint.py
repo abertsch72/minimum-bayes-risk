@@ -126,8 +126,14 @@ def pipeline(args: Args):
     else:
         # elif args.gen.method_args == Args.ListGenArgs.ModelSamplingArgs():
         # TODO: handle temp + nucl differently
-        BASE_MODEL_CLS = get_base_model_cls(args.dataset.dataset)
-        MODEL_CLS = add_mixin(BASE_MODEL_CLS, SamplerWithScoresMixin)
+        MODEL_CLS = AutoModelForSeq2SeqLM
+        if (
+            args.gen.method_args.top_p != 1.0
+            or args.gen.method_args.epsilon_cutoff != 0.0
+            or args.gen.method_args.temp != 1.0
+        ):
+            BASE_MODEL_CLS = get_base_model_cls(args.dataset.dataset)
+            MODEL_CLS = add_mixin(BASE_MODEL_CLS, SamplerWithScoresMixin)
         model = MODEL_CLS.from_pretrained(args.pipeline.hf_model_name).to(device)
         strategy_fn = SamplingMethods.model_sample
         method_name = "temp" if args.gen.method_args.top_p == 1.0 else "top-p"
@@ -198,15 +204,22 @@ def pipeline(args: Args):
             rerank_geo_mean=args.rerank.rerank_geo_mean,
             rank_by_freq=args.rerank.rank_by_freq,
             importance_sample=args.rerank.importance_sample,
+            length_corrected=args.rerank.length_corrected,
+            length_penalty=model.generation_config.length_penalty,
         )
 
         rerank_metric = args.rerank.rerank_metric
+        # rerank_metric += "_normimp" # normalized distribution is canonical one
         if "rouge" in rerank_metric and args.rerank.rerank_geo_mean:
             rerank_metric += "_geo"
         if args.rerank.rank_by_freq:
             rerank_metric += "_freq"
         else:
             rerank_metric += "_logprobs"
+        if args.rerank.importance_sample:
+            rerank_metric += "_imp"
+        if args.rerank.length_corrected:
+            rerank_metric += "_lencorr"
         rerank_metric += f"temp-{args.rerank.rerank_temp}"
 
         evidence_outputs = None
@@ -216,13 +229,49 @@ def pipeline(args: Args):
             with jsonlines.open(args.rerank.evidence_set_file, "r") as f:
                 evidence_outputs = list(f.iter())
 
+            # Code for filtering evidence set by quality
+            # from rouge_score import rouge_scorer
+            # rouge = rouge_scorer.RougeScorer(['rouge1'], use_stemmer=True)
+            # def get_oracle_best(hypo_list, lprob_list, gold, topk):
+            #     scores = []
+            #     for hypo in hypo_list:
+            #         scores.append(rouge.score(gold, hypo)['rouge1'].fmeasure)
+            #     best_hypos = sorted(zip(hypo_list, lprob_list, scores), key=lambda x: x[-1], reverse=True)
+            #     return [h for h, _, _ in best_hypos[:topk]], [s for _, s, _ in best_hypos[:topk]]
+
             if args.rerank.num_evidence is not None:
-                for out in evidence_outputs:
+                # filter_type = f"_mbrevidence{args.rerank.num_evidence}"
+                filter_type = f"_first{args.rerank.num_evidence}"
+                # filter_type = f"_oracle{args.rerank.num_evidence}"
+                for out in tqdm(
+                    evidence_outputs, desc="Filtering evidence set: " + filter_type
+                ):
+                    # mbr_scores = out['rerank_scores_rouge1_logprobstemp-inf']
+                    # best = sorted(zip(out['hypos'], out['lprobs'], mbr_scores),
+                    #               key=lambda x: x[-1], reverse=True)[:args.rerank.num_evidence]
+                    # out['hypos'] = [h for h, _, _ in best]
+                    # out['lprobs'] = [s for _, s, _ in best]
+
+                    rand_perm = np.random.permutation(len(out["hypos"]))
+
+                    out["hypos"] = [out["hypos"][i] for i in rand_perm]
+                    out["lprobs"] = [out["lprobs"][i] for i in rand_perm]
+
                     out["hypos"] = out["hypos"][: args.rerank.num_evidence]
                     out["lprobs"] = out["lprobs"][: args.rerank.num_evidence]
-                rerank_metric += f"_first{args.rerank.num_evidence}"
+                    # out["hypos"], out["lprobs"] = get_oracle_best(out["hypos"], out["lprobs"], out['gold'], args.rerank.num_evidence)
+
+                rerank_metric += filter_type
 
         print("Rerank metric:", rerank_metric)
+        lattice_dir = "output/cnndm-zip/sum_cnndm_bfs_recom_16_70_False_0.4_True_False_4_5_zip_0.75_0.0_0.9"
+        lattice_files = os.listdir(lattice_dir)
+
+        def find_lattice_file(file_id):
+            for filename in lattice_files:
+                if file_id in filename:
+                    return filename
+            raise Exception(f"couldn't find file matching id: {file_id}")
 
         for idx, line in enumerate(tqdm(sampling_outputs)):
             scores_key = f"rerank_scores_{rerank_metric}"
@@ -236,7 +285,17 @@ def pipeline(args: Args):
             evidence_set = None
             if evidence_outputs is not None:
                 evidence_set = evidence_outputs[idx]
-            scores = reranker.rerank(line, evidence_set)
+
+            # Code for lattice evidence set experiments
+            # filename = find_lattice_file(line['id'])
+            # output = Lattice._read_result(lattice_dir, filename)
+            # nodes, edges = Lattice._get_graph(output.ends)
+            # lattice = Lattice(nodes, edges)
+            lattice = None
+
+            scores = reranker.rerank(
+                line, evidence_set, tokenizer=tokenizer, lattice=lattice
+            )
             line[scores_key] = scores
 
         with jsonlines.open(args.gen.outfile, "w") as f:

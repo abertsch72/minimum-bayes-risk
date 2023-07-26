@@ -266,7 +266,9 @@ def listgen(
                     tuple(score.cpu() for score in model_outputs.scores),
                 )
 
-                reconstructed_unbiased_scores = None
+                reconstructed_unbiased_scores = [
+                    None for _ in range(len(reconstructed_scores))
+                ]
                 if hasattr(model_outputs, "unbiased_scores"):
                     reconstructed_unbiased_scores = get_reconstructed_scores(
                         model,
@@ -314,8 +316,9 @@ def listgen(
 
                 outputs["hypos"] = outputs_decoded
                 outputs["lprobs"] = reconstructed_scores
-                outputs["unbiased_lprobs"] = reconstructed_unbiased_scores
                 outputs["num_tokens"] = output_lens
+                if reconstructed_unbiased_scores[0] is not None:
+                    outputs["unbiased_lprobs"] = reconstructed_unbiased_scores
 
                 return outputs
 

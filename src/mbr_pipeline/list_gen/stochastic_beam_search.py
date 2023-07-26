@@ -104,12 +104,13 @@ def get_sbs_mixin(memoryless=False):
             cur_token_scores,
             beam_scores,
             logits_warper,
-            lmbda=0.5,
+            lmbda=1.0,
         ):
             cur_token_scores = logits_warper(input_ids, cur_token_scores)
-            cur_token_scores = (
-                lmbda * cur_token_scores + (1 - lmbda) * next_token_scores
-            )
+            # next_token_scores = logits_warper(input_ids, next_token_scores)
+            # cur_token_scores = (
+            #     lmbda * cur_token_scores + (1 - lmbda) * next_token_scores
+            # )
             return gumbel_like(cur_token_scores) + cur_token_scores
 
     else:
