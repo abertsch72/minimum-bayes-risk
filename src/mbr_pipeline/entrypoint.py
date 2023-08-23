@@ -19,6 +19,7 @@ from src.mbr_pipeline.list_eval.evaluate import Metrics
 from src.mbr_pipeline.list_gen.lattice import Lattice
 from src.mbr_pipeline.list_gen.lattice_mbr import decode_hypos_from_lattice
 from src.mbr_pipeline.list_gen.lattice_sample import lattice_sample_k
+from src.mbr_pipeline.list_gen.openai_sample import OPENAI_MODELS, openai_listgen
 from src.mbr_pipeline.list_gen.sample import SamplingMethods, listgen
 from src.mbr_pipeline.list_gen.sampler_with_scores import SamplerWithScoresMixin
 from src.mbr_pipeline.list_gen.stochastic_beam_search import add_mixin, get_sbs_mixin
@@ -46,6 +47,8 @@ def pipeline(args: Args):
     np.random.seed(args.pipeline.seed)
     torch.random.manual_seed(args.pipeline.seed)
 
+    is_openai = args.pipeline.hf_model_name in OPENAI_MODELS
+
     print(args)
 
     if args.pipeline.wandb:
@@ -63,11 +66,13 @@ def pipeline(args: Args):
     # model = AutoModelForSeq2SeqLM.from_pretrained(args.pipeline.hf_model_name).to(
     #     device
     # )
-    tokenizer = AutoTokenizer.from_pretrained(
-        args.pipeline.hf_tokenizer_name
-        if args.pipeline.hf_tokenizer_name is not None
-        else args.pipeline.hf_model_name
-    )
+    tokenizer = None
+    if not is_openai:
+        tokenizer = AutoTokenizer.from_pretrained(
+            args.pipeline.hf_tokenizer_name
+            if args.pipeline.hf_tokenizer_name is not None
+            else args.pipeline.hf_model_name
+        )
 
     # using DatasetArgs:
     # get dataset
@@ -85,58 +90,63 @@ def pipeline(args: Args):
 
         return lattices
 
-    lattices = model = None
+    lattices = model = method_name = None
     # using ListGenArgs:
     # match args.gen.method_args:
 
     # check if the data exists
     # add the option to regen anyway
-    if isinstance(args.gen.method_args, Args.ListGenArgs.LatticeMBRArgs):
-        lattices = get_lattices(args.pipeline.lattice_dir)
-        method_name = "lattice_mbr"
-        strategy_fn = decode_hypos_from_lattice
 
-    elif isinstance(args.gen.method_args, Args.ListGenArgs.LatticeSamplingArgs):
-        lattices = get_lattices(args.pipeline.lattice_dir)
-        method_name = "lattice_sampling"
-        strategy_fn = lattice_sample_k
+    if is_openai:
+        method_name = "temp"
 
-    elif isinstance(args.gen.method_args, Args.ListGenArgs.BeamSearchArgs):
-        strategy_fn = SamplingMethods.beam_search
-        MODEL_CLS = AutoModelForSeq2SeqLM
-        if (
-            args.gen.method_args.num_beam_groups > 1
-            and args.gen.method_args.diversity_penalty > 0.0
-        ):
-            method_name = "diverse_beam"
-        elif args.gen.method_args.stochastic:
-            method_name = "stochastic_beam_search"
-            strategy_fn = SamplingMethods.stochastic_beam_search
-            BASE_MODEL_CLS = get_base_model_cls(args.dataset.dataset)
-            MODEL_CLS = add_mixin(
-                BASE_MODEL_CLS, get_sbs_mixin(args.gen.method_args.memoryless)
-            )
+    if not is_openai:
+        if isinstance(args.gen.method_args, Args.ListGenArgs.LatticeMBRArgs):
+            lattices = get_lattices(args.pipeline.lattice_dir)
+            method_name = "lattice_mbr"
+            strategy_fn = decode_hypos_from_lattice
+
+        elif isinstance(args.gen.method_args, Args.ListGenArgs.LatticeSamplingArgs):
+            lattices = get_lattices(args.pipeline.lattice_dir)
+            method_name = "lattice_sampling"
+            strategy_fn = lattice_sample_k
+
+        elif isinstance(args.gen.method_args, Args.ListGenArgs.BeamSearchArgs):
+            strategy_fn = SamplingMethods.beam_search
+            MODEL_CLS = AutoModelForSeq2SeqLM
+            if (
+                args.gen.method_args.num_beam_groups > 1
+                and args.gen.method_args.diversity_penalty > 0.0
+            ):
+                method_name = "diverse_beam"
+            elif args.gen.method_args.stochastic:
+                method_name = "stochastic_beam_search"
+                strategy_fn = SamplingMethods.stochastic_beam_search
+                BASE_MODEL_CLS = get_base_model_cls(args.dataset.dataset)
+                MODEL_CLS = add_mixin(
+                    BASE_MODEL_CLS, get_sbs_mixin(args.gen.method_args.memoryless)
+                )
+            else:
+                # if args.gen.method_args.num_beams > 100:
+                #     BASE_MODEL_CLS = get_base_model_cls(args.dataset.dataset)
+                method_name = "beam"
+
+            model = MODEL_CLS.from_pretrained(args.pipeline.hf_model_name).to(device)
+
         else:
-            # if args.gen.method_args.num_beams > 100:
-            #     BASE_MODEL_CLS = get_base_model_cls(args.dataset.dataset)
-            method_name = "beam"
-
-        model = MODEL_CLS.from_pretrained(args.pipeline.hf_model_name).to(device)
-
-    else:
-        # elif args.gen.method_args == Args.ListGenArgs.ModelSamplingArgs():
-        # TODO: handle temp + nucl differently
-        MODEL_CLS = AutoModelForSeq2SeqLM
-        if (
-            args.gen.method_args.top_p != 1.0
-            or args.gen.method_args.epsilon_cutoff != 0.0
-            or args.gen.method_args.temp != 1.0
-        ):
-            BASE_MODEL_CLS = get_base_model_cls(args.dataset.dataset)
-            MODEL_CLS = add_mixin(BASE_MODEL_CLS, SamplerWithScoresMixin)
-        model = MODEL_CLS.from_pretrained(args.pipeline.hf_model_name).to(device)
-        strategy_fn = SamplingMethods.model_sample
-        method_name = "temp" if args.gen.method_args.top_p == 1.0 else "top-p"
+            # elif args.gen.method_args == Args.ListGenArgs.ModelSamplingArgs():
+            # TODO: handle temp + nucl differently
+            MODEL_CLS = AutoModelForSeq2SeqLM
+            if (
+                args.gen.method_args.top_p != 1.0
+                or args.gen.method_args.epsilon_cutoff != 0.0
+                or args.gen.method_args.temp != 1.0
+            ):
+                BASE_MODEL_CLS = get_base_model_cls(args.dataset.dataset)
+                MODEL_CLS = add_mixin(BASE_MODEL_CLS, SamplerWithScoresMixin)
+            model = MODEL_CLS.from_pretrained(args.pipeline.hf_model_name).to(device)
+            strategy_fn = SamplingMethods.model_sample
+            method_name = "temp" if args.gen.method_args.top_p == 1.0 else "top-p"
 
     print(method_name)
 
@@ -176,24 +186,39 @@ def pipeline(args: Args):
 
     print(args.gen.outfile)
     if not os.path.exists(args.gen.outfile):
-        sampling_outputs = listgen(
-            strategy_fn=strategy_fn,
-            model=model,
-            lattices=lattices,
-            tokenizer=tokenizer,
-            dataset=dataset,
-            device=device,
-            num_seqs=args.gen.k,
-            max_length=args.gen.max_length,
-            unique_k=args.gen.unique_k,
-            strategy_args=args.gen.method_args.__dict__,
-        )
+        if is_openai:
+            sampling_outputs = openai_listgen(
+                dataset=dataset,
+                num_seqs=args.gen.k,
+                max_length=args.gen.max_length,
+                unique_k=args.gen.unique_k,
+                strategy_args=args.gen.method_args.__dict__,
+                model=args.pipeline.hf_model_name,
+            )
+        else:
+            sampling_outputs = listgen(
+                strategy_fn=strategy_fn,
+                model=model,
+                lattices=lattices,
+                tokenizer=tokenizer,
+                dataset=dataset,
+                device=device,
+                num_seqs=args.gen.k,
+                max_length=args.gen.max_length,
+                unique_k=args.gen.unique_k,
+                strategy_args=args.gen.method_args.__dict__,
+            )
 
         with jsonlines.open(args.gen.outfile, "w") as f:
             f.write_all(sampling_outputs)
     else:
         with jsonlines.open(args.gen.outfile, "r") as f:
             sampling_outputs = list(f.iter())
+
+    length_penalty = (
+        model.generation_config.length_penalty if model is not None else 0.0
+    )
+    del model
 
     # reranking section
     reevaluate = False
@@ -205,7 +230,7 @@ def pipeline(args: Args):
             rank_by_freq=args.rerank.rank_by_freq,
             importance_sample=args.rerank.importance_sample,
             length_corrected=args.rerank.length_corrected,
-            length_penalty=model.generation_config.length_penalty,
+            length_penalty=length_penalty,
         )
 
         rerank_metric = args.rerank.rerank_metric
@@ -264,14 +289,14 @@ def pipeline(args: Args):
                 rerank_metric += filter_type
 
         print("Rerank metric:", rerank_metric)
-        lattice_dir = "output/cnndm-zip/sum_cnndm_bfs_recom_16_70_False_0.4_True_False_4_5_zip_0.75_0.0_0.9"
-        lattice_files = os.listdir(lattice_dir)
+        # lattice_dir = "output/cnndm-zip/sum_cnndm_bfs_recom_16_70_False_0.4_True_False_4_5_zip_0.75_0.0_0.9"
+        # lattice_files = os.listdir(lattice_dir)
 
-        def find_lattice_file(file_id):
-            for filename in lattice_files:
-                if file_id in filename:
-                    return filename
-            raise Exception(f"couldn't find file matching id: {file_id}")
+        # def find_lattice_file(file_id):
+        #     for filename in lattice_files:
+        #         if file_id in filename:
+        #             return filename
+        #     raise Exception(f"couldn't find file matching id: {file_id}")
 
         for idx, line in enumerate(tqdm(sampling_outputs)):
             scores_key = f"rerank_scores_{rerank_metric}"
