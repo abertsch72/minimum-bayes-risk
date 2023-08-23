@@ -276,6 +276,9 @@ def listgen(
                         model_outputs,
                         tuple(score.cpu() for score in model_outputs.unbiased_scores),
                     )
+                    scores = zip(reconstructed_scores, reconstructed_unbiased_scores)
+                else:
+                    scores = reconstructed_scores
 
                 # todo: hash outputs.sequences
                 outputs_decoded = tokenizer.batch_decode(
@@ -284,8 +287,11 @@ def listgen(
                 hashes = [hash(tuple(seq)) for seq in model_outputs.sequences]
                 saved_out = zip(
                     outputs_decoded,
-                    zip(reconstructed_scores, reconstructed_unbiased_scores),
+                    scores
                 )
+                #print(model_outputs.sequences)
+                output_lens = [len(seq[seq != 1]) for seq in model_outputs.sequences] 
+
                 these_outputs = list(zip(hashes, saved_out))
                 outputs_tokens.update(these_outputs)
 
@@ -306,9 +312,11 @@ def listgen(
                     reconstructed_unbiased_scores = [
                         output[1][1] for output in list(outputs_tokens.values())
                     ]
+                    raise ValueError("warning: output lens will be wrong")
 
                 outputs["hypos"] = outputs_decoded
                 outputs["lprobs"] = reconstructed_scores
+                outputs["num_tokens"] = output_lens
                 if reconstructed_unbiased_scores[0] is not None:
                     outputs["unbiased_lprobs"] = reconstructed_unbiased_scores
 
@@ -326,6 +334,7 @@ def listgen(
                 while outputs["num_unique"] < num_seqs:
                     outputs = continue_list_gen(outputs)
 
+            #print(outputs['num_tokens'])
             all_hypos.append(outputs)
 
     return all_hypos

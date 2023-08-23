@@ -15,7 +15,6 @@ class Args:
         """
         General arguments
         """
-
         hf_model_name: str = field()
         hf_tokenizer_name: Optional[str] = field(default=None)
         wandb: Optional[bool] = field(default=True)
@@ -27,6 +26,7 @@ class Args:
         lattice_dir: Optional[str] = field(
             default=None, metadata={"help": "directory where lattices are stored"}
         )
+        save_directory: str = field(default="test-outputs")
 
     @dataclass_json
     @dataclass
