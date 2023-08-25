@@ -11,7 +11,7 @@
     },
     "dataset": {
         "dataset": "cnndm",
-        "split": "val",
+        "split": "test",
         "start_index": 0,
         "end_index": 1000,
         "shuffle": true
@@ -20,12 +20,13 @@
         "method_args": {
             "temp": 1.0
         },
-        "outfile": null,
-        "k": 1000,
+        "outfile": "test-sampling_outputs/cnndm/facebook-bart-large-cnn/100/temp-temp=0.5top_p=1.0epsilon_cutoff=0.0.jsonl",
+        "k": 100,
         "max_length": 70
     },
     "rerank": {
-        "rerank_metric": null,
+        "rerank_metric": "rouge1",
+        "evidence_set_file": "test-sampling_outputs/cnndm/facebook-bart-large-cnn/100/temp-temp=1.0top_p=1.0epsilon_cutoff=0.02.jsonl",
         "rerank_temp": Infinity,
         "rerank_geo_mean": false
     },

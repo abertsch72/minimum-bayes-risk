@@ -106,8 +106,9 @@ class Metrics:
         gold = item["gold"]
         hypos = item["hypos"]
         cached_scores = item.get("cached_scores", [])
+        # cached_scores = []
         geomeans = []
-        if cached_scores == []:
+        if not cached_scores:
             scores = self.scorer.score(gold, hypos)
         else:
             scores = [Score(d["score_dict"], d["is_pct"]) for d in cached_scores]

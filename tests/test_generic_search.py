@@ -78,7 +78,6 @@ class GenericSearchTester:
         print(f"Greedy output: {output}")
 
     def check_beam(self, input_doc):
-
         gs = GenericSearch(
             self.model,
             self.tokenizer,

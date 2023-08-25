@@ -14,6 +14,7 @@ from src.mbr_pipeline.list_eval.scorers import (
     rescore_bartscore,
     rescore_bertscore,
     rescore_bleu,
+    rescore_bleurt,
     rescore_rouge,
     self_bleu,
 )
@@ -48,6 +49,8 @@ class Reranker:
             self.rerank_fn = rescore_bertscore
         elif rerank_metric == "bleu":
             self.rerank_fn = rescore_bleu
+        elif rerank_metric == "bleurt":
+            self.rerank_fn = rescore_bleurt
         else:
             self.rerank_fn = None
         self.metrics = defaultdict(lambda: [])

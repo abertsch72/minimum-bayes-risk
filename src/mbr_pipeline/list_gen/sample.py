@@ -26,6 +26,7 @@ class SamplingMethods:
         memoryless=False,
         beam_temp=1.0,
         beam_top_p=1.0,
+        **kwargs,
     ):
         return model.generate(
             input_ids,
@@ -36,6 +37,7 @@ class SamplingMethods:
             diversity_penalty=diversity_penalty,
             output_scores=True,
             return_dict_in_generate=True,
+            **kwargs,
         )
 
     def stochastic_beam_search(
@@ -50,6 +52,7 @@ class SamplingMethods:
         memoryless=False,
         beam_temp=1.0,
         beam_top_p=1.0,
+        **kwargs,
     ):
         return model.generate(
             input_ids,
@@ -62,12 +65,13 @@ class SamplingMethods:
             temperature=beam_temp,
             output_scores=True,
             return_dict_in_generate=True,
+            **kwargs,
         )
 
     @staticmethod
     @torch.no_grad()
     def model_sample(
-        input_ids, model, num_seqs, max_length, temp, top_p, epsilon_cutoff
+        input_ids, model, num_seqs, max_length, temp, top_p, epsilon_cutoff, **kwargs
     ):
         if num_seqs <= NUM_GEN_AT_ONCE:
             return model.generate(
@@ -82,6 +86,7 @@ class SamplingMethods:
                 epsilon_cutoff=epsilon_cutoff,
                 output_scores=True,
                 return_dict_in_generate=True,
+                **kwargs,
             )
         else:
             num_generated = 0
@@ -100,6 +105,7 @@ class SamplingMethods:
                     temperature=temp,
                     output_scores=True,
                     return_dict_in_generate=True,
+                    **kwargs,
                 )
                 # for key in partial_output.keys():
                 #     t = partial_output[key]
@@ -185,6 +191,7 @@ def listgen(
     strategy_args,
     model: PreTrainedModel = None,
     lattices: Generator[Tuple[Lattice, Any], None, None] = None,
+    **model_kwargs,
 ):
     all_hypos = []
 
@@ -239,6 +246,7 @@ def listgen(
                     num_seqs=num_seqs,
                     max_length=max_length,
                     **strategy_args,
+                    **model_kwargs,
                 )  #
 
                 # get sequence scores by summing generated token scores and applying length penality
@@ -285,12 +293,9 @@ def listgen(
                     model_outputs.sequences, skip_special_tokens=True
                 )
                 hashes = [hash(tuple(seq)) for seq in model_outputs.sequences]
-                saved_out = zip(
-                    outputs_decoded,
-                    scores
-                )
-                #print(model_outputs.sequences)
-                output_lens = [len(seq[seq != 1]) for seq in model_outputs.sequences] 
+                saved_out = zip(outputs_decoded, scores)
+                # print(model_outputs.sequences)
+                output_lens = [len(seq[seq != 1]) for seq in model_outputs.sequences]
 
                 these_outputs = list(zip(hashes, saved_out))
                 outputs_tokens.update(these_outputs)
@@ -334,7 +339,7 @@ def listgen(
                 while outputs["num_unique"] < num_seqs:
                     outputs = continue_list_gen(outputs)
 
-            #print(outputs['num_tokens'])
+            # print(outputs['num_tokens'])
             all_hypos.append(outputs)
 
     return all_hypos

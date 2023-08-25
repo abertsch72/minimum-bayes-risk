@@ -8,6 +8,7 @@ from numbers import Number
 from typing import Dict, List
 
 import datasets
+import evaluate
 import six
 import torch
 from sacrebleu.metrics import BLEU
@@ -59,6 +60,16 @@ def get_bertscore():
 
 
 @lru_cache(maxsize=1)
+def get_bleurt():
+    return evaluate.load("bleurt", "BLEURT-20-D6")
+
+
+# @lru_cache(maxsize=1)
+# def get_fast_bleurt():
+#     return evaluate.load("bleurt", "BLEURT-20-D6")
+
+
+@lru_cache(maxsize=1)
 def get_bartscore():
     bartscore = BARTScorer(device=device, checkpoint="facebook/bart-large-cnn")
     bartscore.load(path="/data/alexx/lattice-search/bart_score/bart_score.pth")
@@ -83,6 +94,34 @@ def rescore_bertscore(topk_hypos, probs, bertscore=None, evidence_set=None):
         batch_size=32,
     )
     return score["f1"]
+
+
+def rescore_bleurt(topk_hypos, probs, bleurt=None, evidence_set=None):
+    if evidence_set is None:
+        evidence_set = topk_hypos
+    if bleurt is None:
+        bleurt = get_bleurt()
+    predictions = []
+    references = []
+    for hypo in topk_hypos:
+        for ref in evidence_set:
+            predictions.append(hypo)
+            references.append(ref)
+    scores = bleurt.compute(
+        predictions=predictions,
+        references=references,
+        # device=device,
+        # batch_size=32,
+    )["scores"]
+
+    mean_scores = []
+    num_ref = len(evidence_set)
+    for i in range(len(topk_hypos)):
+        score_subset = scores[i * num_ref : (i + 1) * num_ref]
+        assert len(score_subset) == num_ref
+        mean_scores.append(sum(score_subset) / num_ref)
+
+    return mean_scores
 
 
 def rescore_bartscore(topk_hypos, probs, bartscore=None, evidence_set=None):
@@ -228,6 +267,10 @@ class Scorer(object):
         if "bartscore" in metrics:
             self.bartscore = get_bartscore()
 
+        self.bleurt = None
+        if "bleurt" in metrics:
+            self.bleurt = get_bleurt()
+
         self.chrf_scorer = None
         if "chrf" in metrics:
             self.chrf_scorer = lambda hypo, ref: sentence_chrf(hypo, [ref]).score
@@ -259,6 +302,13 @@ class Scorer(object):
             )
             for i in range(len(hypos)):
                 scores[i]["bertscore"] = bert_scores["f1"][i]
+        if self.bleurt is not None:
+            bleurt_scores = self.bleurt.compute(
+                predictions=hypos,
+                references=[gold] * len(hypos),
+            )
+            for i in range(len(hypos)):
+                scores[i]["bleurt"] = bleurt_scores["scores"][i]
         if self.bartscore is not None:
             bart_scores = self.bartscore.score(
                 srcs=[gold for _ in range(len(hypos))],

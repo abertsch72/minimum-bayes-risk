@@ -2,18 +2,19 @@
     "pipeline": {
         "hf_model_name": "ainize/bart-base-cnn",
         "hf_tokenizer_name": null,
-        "wandb": true,
+        "wandb": false,
         "wandb_group": "cnndm",
         "run_name": "cnndm-bart-base-beam",
-        "seed": 101,
+        "seed": 14,
         "no_tqdm": false,
         "no_gpu": false
     },
     "dataset": {
         "dataset": "cnndm",
-        "split": "val",
+        "split": "test",
         "start_index": 0,
-        "end_index": -1
+        "end_index": 1000,
+        "shuffle": true
     },
     "gen": {
         "method_args": {
@@ -24,12 +25,13 @@
         "max_length": 70
     },
     "rerank": {
-        "rerank_metric": null,
+        "rerank_metric": "rouge1",
         "rerank_temp": Infinity,
-        "rerank_geo_mean": false
+        "rerank_geo_mean": false,
+        "evidence_set_file": null
     },
     "eval": {
-        "eval_metrics": "rouge1,rouge2,rougeL,chrf",
+        "eval_metrics": "rouge1,rouge2,rougeL,chrf,bertscore",
         "outfile": null
     }
 }

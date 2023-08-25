@@ -11,6 +11,7 @@ from transformers import (
     AutoTokenizer,
     BartForConditionalGeneration,
     MarianMTModel,
+    MBartForConditionalGeneration,
 )
 
 import wandb
@@ -34,8 +35,14 @@ def get_base_model_cls(dataset):
         Args.DatasetArgs.SupportedDataset.flores,
         Args.DatasetArgs.SupportedDataset.flores_isl,
     ]
+    wmt_datasets = [
+        Args.DatasetArgs.SupportedDataset.wmt_en_de,
+        Args.DatasetArgs.SupportedDataset.wmt_ro_en,
+    ]
     if dataset in flores_datasets:
         return MarianMTModel
+    elif dataset in wmt_datasets:
+        return MBartForConditionalGeneration
     return BartForConditionalGeneration
 
 
@@ -63,9 +70,6 @@ def pipeline(args: Args):
     device = torch.device(
         "cuda" if (not args.pipeline.no_gpu) and torch.cuda.is_available() else "cpu"
     )
-    # model = AutoModelForSeq2SeqLM.from_pretrained(args.pipeline.hf_model_name).to(
-    #     device
-    # )
     tokenizer = None
     if not is_openai:
         tokenizer = AutoTokenizer.from_pretrained(
@@ -73,6 +77,16 @@ def pipeline(args: Args):
             if args.pipeline.hf_tokenizer_name is not None
             else args.pipeline.hf_model_name
         )
+        extra_model_args = {}
+        if args.dataset.dataset == Args.DatasetArgs.SupportedDataset.wmt_en_de:
+            tokenizer.src_lang = "en_XX"
+            forced_bos_token_id = tokenizer.lang_code_to_id["de_DE"]
+            extra_model_args["forced_bos_token_id"] = forced_bos_token_id
+        elif args.dataset.dataset == Args.DatasetArgs.SupportedDataset.wmt_ro_en:
+            tokenizer.src_lang = "ro_RO"
+            forced_bos_token_id = tokenizer.lang_code_to_id["en_XX"]
+            extra_model_args["forced_bos_token_id"] = forced_bos_token_id
+        extra_model_args["early_stopping"] = False
 
     # using DatasetArgs:
     # get dataset
@@ -101,6 +115,7 @@ def pipeline(args: Args):
         method_name = "temp"
 
     if not is_openai:
+        MODEL_CLS = None
         if isinstance(args.gen.method_args, Args.ListGenArgs.LatticeMBRArgs):
             lattices = get_lattices(args.pipeline.lattice_dir)
             method_name = "lattice_mbr"
@@ -131,8 +146,6 @@ def pipeline(args: Args):
                 #     BASE_MODEL_CLS = get_base_model_cls(args.dataset.dataset)
                 method_name = "beam"
 
-            model = MODEL_CLS.from_pretrained(args.pipeline.hf_model_name).to(device)
-
         else:
             # elif args.gen.method_args == Args.ListGenArgs.ModelSamplingArgs():
             # TODO: handle temp + nucl differently
@@ -144,7 +157,7 @@ def pipeline(args: Args):
             ):
                 BASE_MODEL_CLS = get_base_model_cls(args.dataset.dataset)
                 MODEL_CLS = add_mixin(BASE_MODEL_CLS, SamplerWithScoresMixin)
-            model = MODEL_CLS.from_pretrained(args.pipeline.hf_model_name).to(device)
+
             strategy_fn = SamplingMethods.model_sample
             method_name = "temp" if args.gen.method_args.top_p == 1.0 else "top-p"
 
@@ -152,7 +165,7 @@ def pipeline(args: Args):
 
     if args.gen.outfile is None:
         thisdir = [
-            args.pipeline.save_directory, #"test-outputs",
+            args.pipeline.save_directory,  # "test-outputs",
             args.dataset.dataset.name,
             args.pipeline.hf_model_name.replace("/", "-"),
             str(args.gen.k),
@@ -196,6 +209,12 @@ def pipeline(args: Args):
                 model=args.pipeline.hf_model_name,
             )
         else:
+            # only init model if we really need to generate stuff
+            if MODEL_CLS is not None:
+                model = MODEL_CLS.from_pretrained(args.pipeline.hf_model_name).to(
+                    device
+                )
+
             sampling_outputs = listgen(
                 strategy_fn=strategy_fn,
                 model=model,
@@ -207,6 +226,7 @@ def pipeline(args: Args):
                 max_length=args.gen.max_length,
                 unique_k=args.gen.unique_k,
                 strategy_args=args.gen.method_args.__dict__,
+                **extra_model_args,
             )
 
         with jsonlines.open(args.gen.outfile, "w") as f:

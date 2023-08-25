@@ -1,6 +1,6 @@
 {
     "pipeline": {
-        "hf_model_name": "gpt-3.5-turbo",
+        "hf_model_name": "text-curie-001",
         "hf_tokenizer_name": null,
         "wandb": false,
         "wandb_group": "cnndm",
@@ -21,7 +21,7 @@
             "temp": 1.0
         },
         "outfile": null,
-        "k": 50,
+        "k": 25,
         "max_length": 70
     },
     "rerank": {

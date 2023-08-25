@@ -4,7 +4,11 @@ Quick and dirty code to run a sweep over a set of lattice hyperparameters
 import itertools
 import json
 import subprocess
+import sys
 
+# ks = [2, 3, 5, 7, 8, 12, 17, 25, 33, 50, 67, 75, 100]
+tasks = ["wmt_ro_en", "wmt_en_de"]
+temps = [0.3, 0.7, 1.0]
 # choices = dict(
 #     # mbr args
 #     lattice_metric = ['match1', 'match2'],
@@ -20,7 +24,9 @@ import subprocess
 #     rerank_metric = ["rouge1", "rouge2", "rouge6"],
 #     rerank_geo_mean = [True]
 # )
-choices = dict(k=[50, 5, 10, 25, 75, 100])
+choices = dict(tasks=tasks, temps=temps)
+print(choices)
+# choices = dict(temp=[0.5, 0.75, 0.875, 1.25, 1.5, 2.0])
 # uniform
 # length_alpha
 #
@@ -50,12 +56,14 @@ def make_config_file(
 keys = list(choices.keys())
 values = [choices[k] for k in keys]
 
-BASE_CONFIG_FILE = "configs/xsum-beamsamp-large.json"
+# BASE_CONFIG_FILE = "configs/xsum-beamsamp-large.json"
 # BASE_CONFIG_FILE = "configs/cnndm-lattmbr.json"
 # BASE_CONFIG_FILE = "configs/xsum-lattmbr.json"
-TEMP_CONFIG_FILE = "configs/tempfile-xsum-beamsamp-large.json"
+# TEMP_CONFIG_FILE = "configs/tempfile-xsum-beamsamp-large.json"
 # TEMP_CONFIG_FILE = "configs/cnndm_temp_config.json"
 # TEMP_CONFIG_FILE = "configs/xsum_temp_config.json"
+BASE_CONFIG_FILE = sys.argv[-1]
+TEMP_CONFIG_FILE = f"{BASE_CONFIG_FILE}.temp"
 
 
 def main():
@@ -68,12 +76,16 @@ def main():
         # method_args = {k: v for k, v in zip(keys[:-2], config[:-2])}
         # rerank_args = {k: v for k, v in zip(keys[-2:], config[-2:])}
         # make_config_file(BASE_CONFIG_FILE, TEMP_CONFIG_FILE, method_args, rerank_args)
-        k = config[0]
+        k = config
 
         def edit_fn(k):
+            dataset, temp = k
+
             def fn(config_dict):
-                config_dict["gen"]["method_args"]["num_beams"] = k
-                config_dict["gen"]["k"] = k
+                config_dict["gen"]["method_args"]["temp"] = temp
+                config_dict["dataset"]["dataset"] = dataset
+                # config_dict["gen"]["method_args"]["temp"] = k
+                # config_dict["rerank"]["num_evidence"] = k
                 return config_dict
 
             return fn

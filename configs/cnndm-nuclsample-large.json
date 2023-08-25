@@ -1,16 +1,16 @@
 {
     "pipeline": {
-        "hf_model_name": "facebook/bart-large-xsum",
+        "hf_model_name": "facebook/bart-large-cnn",
         "hf_tokenizer_name": null,
         "wandb": false,
-        "wandb_group": "xsum",
-        "run_name": "xsum-bart-large-sample",
+        "wandb_group": "cnndm",
+        "run_name": "cnndm-bart-large-beam",
         "seed": 14,
         "no_tqdm": false,
         "no_gpu": false
     },
     "dataset": {
-        "dataset": "xsum",
+        "dataset": "cnndm",
         "split": "test",
         "start_index": 0,
         "end_index": 1000,
@@ -18,11 +18,12 @@
     },
     "gen": {
         "method_args": {
-            "temp": 1.0
+            "temp": 1.0,
+            "top_p": 1.0
         },
         "outfile": null,
-        "k": 1000,
-        "max_length": 35
+        "k": 100,
+        "max_length": 70
     },
     "rerank": {
         "rerank_metric": null,

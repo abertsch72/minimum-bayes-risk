@@ -15,6 +15,7 @@ class Args:
         """
         General arguments
         """
+
         hf_model_name: str = field()
         hf_tokenizer_name: Optional[str] = field(default=None)
         wandb: Optional[bool] = field(default=True)
@@ -37,6 +38,8 @@ class Args:
             xsum = ["xsum"]
             flores = ["facebook/flores", "nob_Latn-eng_Latn"]
             flores_isl = ["facebook/flores", "isl_Latn-eng_Latn"]
+            wmt_ro_en = ["json", "data/wmt16-ro-en.jsonl"]
+            wmt_en_de = ["json", "data/wmt19-en-de.jsonl"]
 
             def __str__(e):
                 return e.name

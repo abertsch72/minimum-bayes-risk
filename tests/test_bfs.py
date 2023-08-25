@@ -9,7 +9,6 @@ from src.recom_search.model.setup import process_arg, setup_model
 # test of vanilla best first search
 class TestBfs(unittest.TestCase):
     def prepare_input(self):
-
         input_text = "Transformers provides APIs to easily download and train state-of-the-art pretrained models. Using pretrained models can reduce your compute costs, carbon footprint, and save you time from training a model from scratch. The models can be used across different modalities such as: Text: text classification, information extraction, question answering, summarization, translation, and text generation in over 100 languages. Images: image classification, object detection, and segmentation. Our library supports seamless integration between three of the most popular deep learning libraries: PyTorch, TensorFlow and JAX. Train your model in three lines of code in one framework, and load it for inference with another."
 
         self.input_ids = self.tokenizer(input_text, return_tensors="pt").input_ids.to(

@@ -1,0 +1,1 @@
+PYTHONPATH=./:./src python3 src/mbr_pipeline/entrypoint.py --config_file $1
