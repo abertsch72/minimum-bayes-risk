@@ -4,7 +4,7 @@ For baseline recomb model, run `PYTHONPATH=./ python src/recom_search/scripts/ru
 Logs are stored under `logs`; data generated in '*.pkl' are stored in `vizs`.
 
 Visualization
-Run `src/recom_search/evaluation/util.py` to render those HTML files. 
+Run `src/recom_search/evaluation/util.py` to render those HTML files.
 
 
 

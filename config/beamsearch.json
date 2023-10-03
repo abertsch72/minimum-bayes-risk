@@ -1,0 +1,21 @@
+{
+    "outfile": "topk-outputs/beam-search.jsonl",
+    "rerank_configs": [
+        {
+            "rerank_metric": "rouge1",
+            "rerank_geo_mean": false
+        },
+        {
+            "rerank_metric": "rouge2",
+            "rerank_geo_mean": true
+        },
+        {
+            "rerank_metric": "rouge2",
+            "rerank_geo_mean": false
+        },
+        {
+            "rerank_metric": "rougeL",
+            "rerank_geo_mean": false
+        }
+    ]
+}

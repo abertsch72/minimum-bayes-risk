@@ -1,16 +1,16 @@
-import pandas as pd
 import csv
 import glob
-from collections import defaultdict
 import json
-import random
-import pickle
-from pathlib import Path
-import os
-
 import logging
+import os
+import pickle
+import random
 import statistics
+from collections import defaultdict
+from pathlib import Path
 from subprocess import Popen
+
+import pandas as pd
 
 from src.recom_search.model.model_output import SearchModelOutput
 
@@ -34,28 +34,27 @@ conda deactivate
 """
 
 
-def deep_ana(f, config_name, dict_io_data,
-             dict_io_text, dict_io_table, dict_io_stat):
-    name = ".".join(f.split('.')[:-1])
+def deep_ana(f, config_name, dict_io_data, dict_io_text, dict_io_table, dict_io_stat):
+    name = ".".join(f.split(".")[:-1])
     fname = os.path.join(dict_io_table, config_name, f"{name}.json")
     if os.path.isfile(fname):
         logging.info(f"File exist")
         return
     # summarization or translation?
-    if config_name.startswith('sum'):
+    if config_name.startswith("sum"):
         flag_sum = True
-    elif config_name.startswith('mt'):
+    elif config_name.startswith("mt"):
         flag_sum = False
     else:
         raise ValueError("Task either sum or mt")
 
-    with open(os.path.join(dict_io_data, config_name, f), 'rb') as fd:
+    with open(os.path.join(dict_io_data, config_name, f), "rb") as fd:
         finished: SearchModelOutput = pickle.load(fd)
     logger.info(f)
     logger.info(finished.ends)
     if not finished.ends:
         return
-    with open(os.path.join(dict_io_text, config_name, f"{name}.txt"), 'rb') as fd:
+    with open(os.path.join(dict_io_text, config_name, f"{name}.txt"), "rb") as fd:
         fd.read().splitlines()
 
 
@@ -66,7 +65,7 @@ def get_jsons_from_a_folder(folder_dir):
 
     content = defaultdict(list)
     for f in files:
-        with open(os.path.join(folder_dir, f), 'r') as fd:
+        with open(os.path.join(folder_dir, f), "r") as fd:
             t = json.load(fd)
         for k, v in t.items():
             content[k].append(v)
@@ -74,18 +73,25 @@ def get_jsons_from_a_folder(folder_dir):
 
 
 def get_finished_hypo(folder_dir, files):
-
     es = []
     for f in files:
-        with open(os.path.join(folder_dir, f), 'rb') as fd:
+        with open(os.path.join(folder_dir, f), "rb") as fd:
             finished: SearchModelOutput = pickle.load(fd)
         es.append(len(finished.ends))
 
     return statistics.mean(es)
 
 
-def evaluate_grammar_gector(all_files, config_name, dict_io_text, dict_io_table, nexamples=1000, model_repo='/mnt/data1/jcxu/gector', proj_dir='/mnt/data1/jcxu/lattice-sum/'):
-    file_txt = [".".join(f.split('.')[:-1])+'.txt' for f in all_files]
+def evaluate_grammar_gector(
+    all_files,
+    config_name,
+    dict_io_text,
+    dict_io_table,
+    nexamples=1000,
+    model_repo="/mnt/data1/jcxu/gector",
+    proj_dir="/mnt/data1/jcxu/lattice-sum/",
+):
+    file_txt = [".".join(f.split(".")[:-1]) + ".txt" for f in all_files]
     all_lines = []
     for f in file_txt:
         with open(os.path.join(dict_io_text, config_name, f)) as rfd:
@@ -94,16 +100,15 @@ def evaluate_grammar_gector(all_files, config_name, dict_io_text, dict_io_table,
             all_lines += lines
     random.shuffle(all_lines)
     all_lines = all_lines[:nexamples]
-    input_file = os.path.join(proj_dir, dict_io_table,
-                              config_name, "input.txt")
+    input_file = os.path.join(proj_dir, dict_io_table, config_name, "input.txt")
 
-    outpuf_file = os.path.join(
-        proj_dir, dict_io_table, config_name, "output.txt")
-    outpuf_cnt_file = os.path.join(proj_dir,
-                                   dict_io_table, config_name, "output_cnt.txt")
+    outpuf_file = os.path.join(proj_dir, dict_io_table, config_name, "output.txt")
+    outpuf_cnt_file = os.path.join(
+        proj_dir, dict_io_table, config_name, "output_cnt.txt"
+    )
 
-    with open(input_file, 'w') as fd:
-        fd.write('\n'.join(all_lines))
+    with open(input_file, "w") as fd:
+        fd.write("\n".join(all_lines))
 
     command = f"sh src/recom_search/evaluation/bash_gector.sh {model_repo} {input_file} {outpuf_file} {outpuf_cnt_file}"
     print(command)
@@ -111,48 +116,63 @@ def evaluate_grammar_gector(all_files, config_name, dict_io_text, dict_io_table,
 
     p.wait()
     os.chdir(proj_dir)
-    with open(outpuf_cnt_file, 'r') as fd:
+    with open(outpuf_cnt_file, "r") as fd:
         lines = fd.read().splitlines()
     assert len(lines) == 1
     err = float(lines[0])
     return err
 
 
-def deep_analyze_main(args, config_name, dict_io_data, dict_io_text, dict_io_stat, dict_io_table,  proj_dir='/mnt/data1/jcxu/lattice-sum/'):
+def deep_analyze_main(
+    args,
+    config_name,
+    dict_io_data,
+    dict_io_text,
+    dict_io_stat,
+    dict_io_table,
+    proj_dir="/mnt/data1/jcxu/lattice-sum/",
+):
     raw_files = os.listdir(os.path.join(dict_io_data, config_name))
     raw_files_stat = os.listdir(os.path.join(dict_io_stat, config_name))
     # get number of finished nodes from data, analyze model parameter, gather results to json and a latex table
-    Path(os.path.join(dict_io_table, config_name)).mkdir(
-        parents=True, exist_ok=True)
+    Path(os.path.join(dict_io_table, config_name)).mkdir(parents=True, exist_ok=True)
     outpuf_cnt_file = os.path.join(
-        proj_dir, dict_io_table, config_name, "output_cnt.txt")
+        proj_dir, dict_io_table, config_name, "output_cnt.txt"
+    )
     if os.path.isfile(outpuf_cnt_file):
-        logging.info('all analysis has been done. skip')
+        logging.info("all analysis has been done. skip")
         return
     else:
-        with open(outpuf_cnt_file, 'w') as fp:
+        with open(outpuf_cnt_file, "w") as fp:
             pass
-    if args.dataset.startswith('en'):
+    if args.dataset.startswith("en"):
         error_rate = 0
     else:
-        error_rate = evaluate_grammar_gector(raw_files_stat, config_name,
-                                             dict_io_text, dict_io_table)
-    num_ends = get_finished_hypo(os.path.join(
-        dict_io_data, config_name), raw_files)
-    data_points: dict = get_jsons_from_a_folder(
-        os.path.join(dict_io_stat, config_name))
+        error_rate = evaluate_grammar_gector(
+            raw_files_stat, config_name, dict_io_text, dict_io_table
+        )
+    num_ends = get_finished_hypo(os.path.join(dict_io_data, config_name), raw_files)
+    data_points: dict = get_jsons_from_a_folder(os.path.join(dict_io_stat, config_name))
 
     final = {}
 
     # keys in args
-    arg_keys = ['task', 'dataset', 'model', 'beam_size', 'max_len'] + ['ngram_suffix',
-                                                                       'len_diff', 'merge', 'post_ratio', 'dfs_expand', 'avg_score', 'heu_seq_score_len_rwd', 'top_p']
+    arg_keys = ["task", "dataset", "model", "beam_size", "max_len"] + [
+        "ngram_suffix",
+        "len_diff",
+        "merge",
+        "post_ratio",
+        "dfs_expand",
+        "avg_score",
+        "heu_seq_score_len_rwd",
+        "top_p",
+    ]
     for key in arg_keys:
         final[key] = getattr(args, key)
-    final['error'] = error_rate
-    final['num_end'] = num_ends
+    final["error"] = error_rate
+    final["num_end"] = num_ends
     for k, v in data_points.items():
-        if k == 'file' or 'REP' in k:
+        if k == "file" or "REP" in k:
             continue
         val = statistics.mean(v) if v else 0
         final[k] = "{:.4f}".format(val)
@@ -170,8 +190,7 @@ def deep_analyze_main(args, config_name, dict_io_data, dict_io_text, dict_io_sta
         concat = True
     if concat:
         unpickled_df = pd.read_pickle(gather_pkl)
-        original_df = pd.concat(
-            [unpickled_df, original_df], axis=0, ignore_index=True)
+        original_df = pd.concat([unpickled_df, original_df], axis=0, ignore_index=True)
         original_df.to_pickle(gather_pkl)
     else:
         original_df.to_pickle(gather_pkl)

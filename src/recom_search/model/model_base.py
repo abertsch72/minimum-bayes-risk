@@ -1,11 +1,20 @@
-from time import time
-from functools import wraps
 from abc import ABC, abstractmethod
+from functools import wraps
+from time import time
+
 from transformers import PreTrainedModel, PreTrainedTokenizer
 
 
 class SearchStrategy(ABC):
-    def __init__(self, model: PreTrainedModel, tokenizer: PreTrainedTokenizer, device, min_len: int, max_len: int, beam_size: int) -> None:
+    def __init__(
+        self,
+        model: PreTrainedModel,
+        tokenizer: PreTrainedTokenizer,
+        device,
+        min_len: int,
+        max_len: int,
+        beam_size: int,
+    ) -> None:
         super().__init__()
         self.model = model
         self.tokenizer = tokenizer
@@ -29,8 +38,9 @@ def timing(f):
         ts = time()
         result = f(*args, **kw)
         te = time()
-        result['run_time'] = te-ts
+        result["run_time"] = te - ts
         return result
+
     return wrap
 
 
@@ -41,4 +51,5 @@ def cal_model_call(f):
         # t^2
         # result['model_call'] = 0
         return result
+
     return wrap

@@ -1,0 +1,9 @@
+{
+    "lattice_dir": "output/data/250-rcb-startat3k",
+    "outfile": "topk-outputs/lattice-samp-mc1000-rcb-1.0.jsonl",
+    "lattice_score_temp": 1.0,
+    "sample_uniform": false,
+    "rerank_metric": "rouge2",
+    "rerank_geo_mean": false,
+    "k": 1000
+}

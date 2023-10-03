@@ -1,0 +1,75 @@
+{
+    "lattice_dir": "output/data/250-zip-startat3k",
+    "outfile": "topk-outputs/latticesamp-zip-temp0.7.jsonl",
+    "lattice_score_temp": 0.7,
+    "sample_uniform": false,
+    "rerank_configs": [
+        {
+            "rerank_metric": "rouge1",
+            "rerank_geo_mean": false
+        },
+        {
+            "rerank_metric": "rouge2",
+            "rerank_geo_mean": true
+        },
+        {
+            "rerank_metric": "rouge2",
+            "rerank_geo_mean": false
+        },
+        {
+            "rerank_metric": "rougeL",
+            "rerank_geo_mean": false
+        },
+        {
+            "rerank_metric": "rouge2",
+            "rerank_geo_mean": false,
+            "rerank_temp": 100.0
+        },
+        {
+            "rerank_metric": "rouge2",
+            "rerank_geo_mean": false,
+            "rerank_temp": 50.0
+        },
+        {
+            "rerank_metric": "rouge2",
+            "rerank_geo_mean": false,
+            "rerank_temp": 20.0
+        },
+        {
+            "rerank_metric": "rouge2",
+            "rerank_geo_mean": false,
+            "rerank_temp": 10.0
+        },
+        {
+            "rerank_metric": "rouge2",
+            "rerank_geo_mean": false,
+            "rerank_temp": 5.0
+        },
+        {
+            "rerank_metric": "rouge1",
+            "rerank_geo_mean": false,
+            "rerank_temp": 100.0
+        },
+        {
+            "rerank_metric": "rouge1",
+            "rerank_geo_mean": false,
+            "rerank_temp": 50.0
+        },
+        {
+            "rerank_metric": "rouge1",
+            "rerank_geo_mean": false,
+            "rerank_temp": 20.0
+        },
+        {
+            "rerank_metric": "rouge1",
+            "rerank_geo_mean": false,
+            "rerank_temp": 10.0
+        },
+        {
+            "rerank_metric": "rouge1",
+            "rerank_geo_mean": false,
+            "rerank_temp": 5.0
+        }
+    ],
+    "k": 50
+}

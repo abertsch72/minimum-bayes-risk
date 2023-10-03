@@ -1,0 +1,35 @@
+{
+    "pipeline": {
+        "hf_model_name": "linydub/bart-large-samsum",
+        "hf_tokenizer_name": null,
+        "wandb": true,
+        "wandb_group": "samsum",
+        "run_name": "bart-large-beam",
+        "seed": 101,
+        "no_tqdm": false,
+        "no_gpu": false
+    },
+    "dataset": {
+        "dataset": "samsum",
+        "split": "val",
+        "start_index": 0,
+        "end_index": -1
+    },
+    "gen": {
+        "method_args": {
+            "num_beams": 50
+        },
+        "outfile": null,
+        "k": 50,
+        "max_length": 60
+    },
+    "rerank": {
+        "rerank_metric": null,
+        "rerank_temp": Infinity,
+        "rerank_geo_mean": false
+    },
+    "eval": {
+        "eval_metrics": "rouge1,rouge2,rougeL,chrf",
+        "outfile": null
+    }
+}

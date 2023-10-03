@@ -1,0 +1,37 @@
+{
+    "pipeline": {
+        "hf_model_name": "Helsinki-NLP/opus-mt-tc-big-gmq-en",
+        "hf_tokenizer_name": null,
+        "wandb": false,
+        "wandb_group": "flores",
+        "run_name": "flores-opus-base-sample",
+        "seed": 14,
+        "no_tqdm": false,
+        "no_gpu": false
+    },
+    "dataset": {
+        "dataset": "flores",
+        "split": "dev",
+        "start_index": 0,
+        "end_index": -1,
+        "shuffle": true
+    },
+    "gen": {
+        "method_args": {
+            "temp": 1.0,
+            "epsilon_cutoff": 0.02
+        },
+        "outfile": null,
+        "k": 100,
+        "max_length": 50
+    },
+    "rerank": {
+        "rerank_metric": "rouge1",
+        "rerank_temp": Infinity,
+        "rerank_geo_mean": false
+    },
+    "eval": {
+        "eval_metrics": "chrf,chrf++,bleu,bertscore",
+        "outfile": null
+    }
+}

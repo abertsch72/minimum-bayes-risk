@@ -5,6 +5,8 @@
     "version": "0.2.0",
     "configurations": [
 
+
+
         {
             "name": "Python: Current File",
             "type": "python",
@@ -14,6 +16,20 @@
             "justMyCode": false,
             "python.envFile": "${workspaceFolder}/.env",
             "args": [
+            ],
+        },
+
+        {
+            "name": "pipeline",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/mbr_pipeline/entrypoint.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "python.envFile": "${workspaceFolder}/.env",
+            "args": [
+                "--config_file", "configs/config-test.json",
+                "--no_wandb"
             ],
         },
         {
@@ -31,7 +47,24 @@
             ],
         },
 
-        
+        {
+            "name": "mbr debug",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/mbr_rouge.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "args": [
+                "--lattice_metric", "rouge1",
+                "--d_length", "4",
+                "--lattice_topk", "20",
+                "--rerank_rouge", "1",
+                "--match_uniform",
+                "--run_name", "debugging",
+                "--target_length", "20",
+            ],
+        },
+
         {
             "name": "summ xsum",
             "type": "python",
