@@ -28,7 +28,7 @@
         "rerank_metric": "bleu",
         "rerank_temp": Infinity,
         "rerank_geo_mean": false,
-        "evidence_set_file": "new-sampling_outputs/flores/Helsinki-NLP-opus-mt-tc-big-gmq-en/50/temp-temp=1.0top_p=1.0.jsonl"
+        "evidence_set_file": "new-sampling_outputs/flores/Helsinki-NLP-opus-mt-tc-big-gmq-en/100/temp-temp=2.0top_p=1.0epsilon_cutoff=0.0.jsonl"
     },
     "eval": {
         "eval_metrics": "chrf,chrf++,bleu,bertscore",

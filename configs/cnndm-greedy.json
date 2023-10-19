@@ -18,23 +18,22 @@
     },
     "gen": {
         "method_args": {
-            "temp": 0.5
+            "num_beams": 1
         },
-        "outfile": "full_mbr.jsonl",
+        "outfile": null,
         "k": 1,
         "max_length": 70
     },
     "rerank": {
         "rerank_metric": null,
-        "evidence_set_file": "test-sampling_outputs/cnndm/facebook-bart-large-cnn/100/temp-temp=1.0top_p=1.0epsilon_cutoff=0.0.jsonl",
-        "num_evidence": 30,
-        "num_hypo": 30,
+        "rerank_temp": Infinity,
         "rerank_geo_mean": false,
-        "length_corrected": null,
-        "rerank_temp": Infinity
+        "evidence_set_file": "fixed-test-sampling_outputs/cnndm/facebook-bart-large-cnn/100/temp-temp=1.25top_p=1.0epsilon_cutoff=0.015.jsonl",
+        "num_evidence": null,
+        "importance_sample": false
     },
     "eval": {
-        "eval_metrics": "rouge1,rouge2,rougeL,chrf,bertscore,lengthratio",
+        "eval_metrics": "rouge1,rouge2,rougeL,bertscore",
         "outfile": null
     }
 }

@@ -1,36 +1,37 @@
 {
     "pipeline": {
-        "hf_model_name": "facebook/bart-large-xsum",
+        "hf_model_name": "facebook/mbart-large-50-one-to-many-mmt",
         "hf_tokenizer_name": null,
         "wandb": false,
-        "wandb_group": "xsum",
-        "run_name": "xsum-bart-large-sample",
-        "seed": 14,
+        "wandb_group": "ende",
+        "run_name": "wmt-ende-mbart-large-beam",
+        "seed": 2021,
         "no_tqdm": false,
         "no_gpu": false
     },
     "dataset": {
-        "dataset": "xsum",
+        "dataset": "wmt_en_de",
         "split": "test",
         "start_index": 0,
-        "end_index": 1000,
+        "end_index": 200,
         "shuffle": true
     },
     "gen": {
         "method_args": {
-            "temp": 1.0
+            "num_beams": 5
         },
         "outfile": null,
-        "k": 1000,
-        "max_length": 35
+        "k": 5,
+        "max_length": 70
     },
     "rerank": {
         "rerank_metric": null,
+        "evidence_set_file": null,
         "rerank_temp": Infinity,
         "rerank_geo_mean": false
     },
     "eval": {
-        "eval_metrics": "rouge1,rouge2,rougeL,chrf,bertscore",
+        "eval_metrics": "bleu,chrf,chrf++",
         "outfile": null
     }
 }

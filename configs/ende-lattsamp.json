@@ -1,0 +1,38 @@
+{
+    "pipeline": {
+        "hf_model_name": "facebook/mbart-large-50-one-to-many-mmt",
+        "hf_tokenizer_name": null,
+        "wandb": false,
+        "wandb_group": "ende",
+        "run_name": "wmt-ende-mbart-large-lattmbr",
+        "seed": 2021,
+        "no_tqdm": false,
+        "no_gpu": true,
+        "lattice_dir": "custom_output/wmt-en-de-zip/mt1n_en-de_bfs_recom_16_50_False_0.4_True_False_4_5_zip_0.75_0.0_0.9"
+    },
+    "dataset": {
+        "dataset": "wmt_en_de",
+        "split": "test",
+        "start_index": 0,
+        "end_index": 200,
+        "shuffle": true
+    },
+    "gen": {
+        "method_args": {
+            "lattice_score_temp": 0.7,
+            "sample_uniform": false
+        },
+        "outfile": null,
+        "max_length": 60,
+        "k": 50
+    },
+    "rerank": {
+        "rerank_metric": null,
+        "rerank_temp": Infinity,
+        "rerank_geo_mean": false
+    },
+    "eval": {
+        "eval_metrics": "bleu,chrf,chrf++",
+        "outfile": null
+    }
+}

@@ -19,7 +19,7 @@
     "gen": {
         "method_args": {
             "temp": 1.0,
-            "epsilon_cutoff": 0.02
+            "epsilon_cutoff": 0.05
         },
         "outfile": null,
         "k": 100,

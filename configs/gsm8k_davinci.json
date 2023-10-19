@@ -1,36 +1,38 @@
 {
     "pipeline": {
-        "hf_model_name": "facebook/bart-large-xsum",
+        "hf_model_name": "text-davinci-003",
         "hf_tokenizer_name": null,
         "wandb": false,
-        "wandb_group": "xsum",
-        "run_name": "xsum-bart-large-sample",
+        "wandb_group": "cnndm",
+        "run_name": "cnndm-bart-large-beam",
         "seed": 14,
         "no_tqdm": false,
         "no_gpu": false
     },
     "dataset": {
-        "dataset": "xsum",
-        "split": "test",
+        "dataset": "gsm8k",
+        "split": "train",
         "start_index": 0,
-        "end_index": 1000,
+        "end_index": 200,
         "shuffle": true
     },
     "gen": {
         "method_args": {
-            "temp": 1.0
+            "temp": 1.0,
+            "top_p": 1.0
         },
         "outfile": null,
-        "k": 1000,
-        "max_length": 35
+        "k": 40,
+        "max_length": 128
     },
     "rerank": {
         "rerank_metric": null,
+        "evidence_set_file": null,
         "rerank_temp": Infinity,
         "rerank_geo_mean": false
     },
     "eval": {
-        "eval_metrics": "rouge1,rouge2,rougeL,chrf,bertscore",
+        "eval_metrics": null,
         "outfile": null
     }
 }

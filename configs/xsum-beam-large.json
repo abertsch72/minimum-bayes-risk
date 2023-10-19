@@ -27,7 +27,10 @@
     "rerank": {
         "rerank_metric": "rouge1",
         "rerank_temp": Infinity,
-        "rerank_geo_mean": false
+        "rerank_geo_mean": false,
+        "evidence_set_file": "new-sampling_outputs/xsum/facebook-bart-large-xsum/100/beam-num_beams=100num_beam_groups=1diversity_penalty=0.0.jsonl",
+        "importance_sample": false,
+        "num_evidence": null
     },
     "eval": {
         "eval_metrics": "rouge1,rouge2,rougeL,chrf,bertscore",

@@ -11,27 +11,31 @@
     },
     "dataset": {
         "dataset": "cnndm",
-        "split": "val",
+        "split": "test",
         "start_index": 0,
-        "end_index": 1000,
-        "shuffle": true
+        "end_index": -1,
+        "shuffle": false
     },
     "gen": {
         "method_args": {
-            "num_beams": 50
+            "num_beams": 5,
+            "num_beam_groups": 5,
+            "diversity_penalty": 0.7
         },
         "outfile": null,
-        "k": 50,
+        "k": 5,
         "max_length": 70
     },
     "rerank": {
-        "rerank_metric": "rouge1",
-        "rerank_temp": 0.5,
+        "rerank_metric": null,
+        "rerank_temp": Infinity,
         "rerank_geo_mean": false,
-        "evidence_set_file": "new-sampling_outputs/cnndm/facebook-bart-large-cnn/100/temp-temp=2.0top_p=1.0epsilon_cutoff=0.0.jsonl"
+        "evidence_set_file": "fixed-test-sampling_outputs/cnndm/facebook-bart-large-cnn/100/temp-temp=1.25top_p=1.0epsilon_cutoff=0.015.jsonl",
+        "num_evidence": null,
+        "importance_sample": false
     },
     "eval": {
-        "eval_metrics": "rouge1,rouge2,rougeL,chrf,bertscore",
+        "eval_metrics": "rouge1,rouge2,rougeL,bertscore,lengthratio",
         "outfile": null
     }
 }

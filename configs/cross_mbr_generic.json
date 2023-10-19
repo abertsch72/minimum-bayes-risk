@@ -1,0 +1,41 @@
+{
+    "pipeline": {
+        "hf_model_name": "facebook/mbart-large-50-many-to-many-mmt",
+        "hf_tokenizer_name": null,
+        "wandb": false,
+        "wandb_group": "roen",
+        "run_name": "roen-mbart-large-sample",
+        "seed": 14,
+        "no_tqdm": false,
+        "no_gpu": false
+    },
+    "dataset": {
+        "dataset": "wmt_ro_en",
+        "split": "test",
+        "start_index": 0,
+        "end_index": -1,
+        "shuffle": true
+    },
+    "gen": {
+        "method_args": {
+            "temp": "<dummy>"
+        },
+        "outfile": "<dummy>",
+        "k": 100,
+        "max_length": 70
+    },
+    "rerank": {
+        "rerank_metric": "bleu",
+        "rerank_temp": Infinity,
+        "rerank_geo_mean": false,
+        "evidence_set_file": "<dummy>",
+        "num_evidence": 30,
+        "num_hypo": 30,
+        "importance_sample": false,
+        "length_corrected": null
+    },
+    "eval": {
+        "eval_metrics": "bleu,bertscore,chrf,rouge1,rouge2,rougeL",
+        "outfile": null
+    }
+}

@@ -1,0 +1,41 @@
+{
+    "pipeline": {
+        "hf_model_name": "facebook/mbart-large-50-many-to-many-mmt",
+        "hf_tokenizer_name": null,
+        "wandb": false,
+        "wandb_group": "roen",
+        "run_name": "roen-mbart-large-sample",
+        "seed": 14,
+        "no_tqdm": false,
+        "no_gpu": false
+    },
+    "dataset": {
+        "dataset": "wmt_ro_en",
+        "split": "test",
+        "start_index": 0,
+        "end_index": -1,
+        "shuffle": true
+    },
+    "gen": {
+        "method_args": {
+            "temp": 0.3
+        },
+        "outfile": null,
+        "k": 50,
+        "max_length": 70
+    },
+    "rerank": {
+        "rerank_metric": null,
+        "evidence_set_file": "/home/alexx/lattice-search/test-outputs/wmt_ro_en/facebook-mbart-large-50-many-to-many-mmt/50/temp-temp=1.0top_p=1.0epsilon_cutoff=0.0.jsonl",
+        "num_evidence": 50,
+        "num_hypo": 50,
+        "length_corrected": "reward",
+        "length_penalty": 1.0,
+        "rerank_geo_mean": false,
+        "rerank_temp": 1.0
+    },
+    "eval": {
+        "eval_metrics": "rouge1,rouge2,rougeL,bleu,chrf,bleurt,lengthratio",
+        "outfile": null
+    }
+}
